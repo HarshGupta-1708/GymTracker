@@ -2,8 +2,11 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as AuthSession from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
-import Constants from "expo-constants";
-import { GoogleAuthProvider, signInWithCredential, signInAnonymously } from "firebase/auth";
+import {
+    GoogleAuthProvider,
+    signInAnonymously,
+    signInWithCredential,
+} from "firebase/auth";
 import { useEffect, useState } from "react";
 import {
     ActivityIndicator,
@@ -34,19 +37,31 @@ export default function LoginScreen({ onGuestLogin }) {
       const clientId = process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID;
       const androidClientId = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
       const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+      const proxyUri = AuthSession.makeRedirectUri({ useProxy: true });
 
       // Log configuration status
       console.log("[Auth Config] Validating OAuth credentials...");
-      console.log("[Auth Config] Web Client ID:", clientId ? "✓ Set" : "✗ Missing");
-      console.log("[Auth Config] Android Client ID:", androidClientId ? "✓ Set" : "✗ Missing");
-      console.log("[Auth Config] iOS Client ID:", iosClientId ? "✓ Set" : "✗ Missing");
+      console.log(
+        "[Auth Config] Web Client ID:",
+        clientId ? "✓ Set" : "✗ Missing",
+      );
+      console.log(
+        "[Auth Config] Android Client ID:",
+        androidClientId ? "✓ Set" : "✗ Missing",
+      );
+      console.log(
+        "[Auth Config] iOS Client ID:",
+        iosClientId ? "✓ Set" : "✗ Missing",
+      );
       console.log("[Auth Config] Platform:", Platform.OS);
-      console.log("[Auth Config] Redirect URI:", AuthSession.makeRedirectUri({ useProxy: true }));
+      console.log("[Auth Config] Proxy Redirect URI:", proxyUri);
 
       // For Android, Android Client ID is critical
       if (Platform.OS === "android" && !androidClientId) {
         console.error("[Auth Error] Android Client ID is missing!");
-        setError("Google Sign-in not properly configured for Android. Using Guest mode.");
+        setError(
+          "Google Sign-in not properly configured for Android. Using Guest mode.",
+        );
         setCredentialsReady(true);
         return false;
       }
@@ -54,7 +69,9 @@ export default function LoginScreen({ onGuestLogin }) {
       // For iOS, iOS Client ID is critical
       if (Platform.OS === "ios" && !iosClientId) {
         console.error("[Auth Error] iOS Client ID is missing!");
-        setError("Google Sign-in not properly configured for iOS. Using Guest mode.");
+        setError(
+          "Google Sign-in not properly configured for iOS. Using Guest mode.",
+        );
         setCredentialsReady(true);
         return false;
       }
@@ -82,7 +99,10 @@ export default function LoginScreen({ onGuestLogin }) {
       console.log("[Auth] Anonymous sign-in successful");
       setLoading(false);
     } catch (err) {
-      console.warn("[Auth] Firebase Anonymous Auth failed, falling back to local demo mode:", err.message);
+      console.warn(
+        "[Auth] Firebase Anonymous Auth failed, falling back to local demo mode:",
+        err.message,
+      );
       // Fallback to demo mode
       if (typeof onGuestLogin === "function") {
         onGuestLogin();
@@ -93,10 +113,14 @@ export default function LoginScreen({ onGuestLogin }) {
     }
   };
 
+  // CRITICAL FIX: Explicitly set the redirect URL to use Expo proxy
+  const redirectUrl = AuthSession.makeRedirectUri({ useProxy: true });
+
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
     androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
     iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    redirectUrl, // CRITICAL: Explicitly pass the proxy redirect URL
   });
 
   const handleLogin = async () => {
@@ -105,30 +129,36 @@ export default function LoginScreen({ onGuestLogin }) {
       if (!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID) {
         Alert.alert(
           "Configuration Error",
-          "Google Client ID not found. Please check your .env file."
+          "Google Client ID not found. Please check your .env file.",
         );
         return;
       }
 
       // Platform-specific validation
-      if (Platform.OS === "android" && !process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID) {
+      if (
+        Platform.OS === "android" &&
+        !process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID
+      ) {
         Alert.alert(
           "Android Configuration Missing",
           "Google Android Client ID not configured.\n\n" +
-          "Steps to fix:\n" +
-          "1. Run: eas credentials -p android\n" +
-          "2. Create Android OAuth credential in Google Cloud Console\n" +
-          "3. Add EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID to .env\n" +
-          "4. Rebuild the app"
+            "Steps to fix:\n" +
+            "1. Run: eas credentials -p android\n" +
+            "2. Create Android OAuth credential in Google Cloud Console\n" +
+            "3. Add EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID to .env\n" +
+            "4. Rebuild the app",
         );
         return;
       }
 
-      if (Platform.OS === "ios" && !process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID) {
+      if (
+        Platform.OS === "ios" &&
+        !process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
+      ) {
         Alert.alert(
           "iOS Configuration Missing",
           "Google iOS Client ID not configured.\n\n" +
-          "Please add EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID to your .env file."
+            "Please add EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID to your .env file.",
         );
         return;
       }
@@ -136,16 +166,17 @@ export default function LoginScreen({ onGuestLogin }) {
       if (!request) {
         Alert.alert(
           "Auth Service Not Ready",
-          "Google Auth is initializing. Please try again."
+          "Google Auth is initializing. Please try again.",
         );
         return;
       }
 
       setError(null);
-      console.log("[Auth] Starting Google Sign-in with useProxy: true...");
-      
-      // CRITICAL: useProxy must be true to use https://auth.expo.io redirect
-      await promptAsync({ useProxy: true });
+      console.log("[Auth] Starting Google Sign-in with Expo proxy redirect...");
+
+      // CRITICAL: useProxy is already set in the hook configuration via redirectUrl
+      // Just call promptAsync without parameters
+      await promptAsync();
     } catch (e) {
       console.error("[Auth] Login Error:", e);
       const errorMessage = e.message || "Failed to start Google Sign-in";
@@ -156,12 +187,14 @@ export default function LoginScreen({ onGuestLogin }) {
 
   // Log the ACTUAL URI that will be used
   useEffect(() => {
-    const actualRedirect = AuthSession.makeRedirectUri({ useProxy: true });
+    const proxyRedirect = AuthSession.makeRedirectUri({ useProxy: true });
     console.log("\n=== OAUTH REDIRECT CONFIGURATION ===");
-    console.log("Redirect URI (useProxy: true):", actualRedirect);
-    console.log("Web Client ID exists:", !!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID);
-    console.log("Android Client ID exists:", !!process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID);
-    console.log("iOS Client ID exists:", !!process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID);
+    console.log("✓ Proxy Redirect URI:", proxyRedirect);
+    console.log("✓ Web Client ID exists:", !!process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID);
+    console.log("✓ Android Client ID exists:", !!process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID);
+    console.log("✓ iOS Client ID exists:", !!process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID);
+    console.log("✓ Platform:", Platform.OS);
+    console.log("✓ useIdTokenAuthRequest configured with redirectUrl");
     console.log("=====================================\n");
   }, []);
 
@@ -173,11 +206,14 @@ export default function LoginScreen({ onGuestLogin }) {
         loginWithGoogle(id_token);
       } else {
         setError("No ID token received from Google");
-        Alert.alert("Auth Error", "Failed to get authentication token from Google");
+        Alert.alert(
+          "Auth Error",
+          "Failed to get authentication token from Google",
+        );
       }
     } else if (response?.type === "error") {
       let errorMessage = "Google Sign-in failed";
-      
+
       if (response.error?.message) {
         errorMessage = response.error.message;
       } else if (response.params?.error) {
@@ -193,24 +229,33 @@ export default function LoginScreen({ onGuestLogin }) {
       });
 
       // Handle specific error cases
-      if (errorMessage.includes("cross-site") || errorMessage.includes("state")) {
-        setError("Cross-site verification failed. Clear app data and try again.");
+      if (
+        errorMessage.includes("cross-site") ||
+        errorMessage.includes("state")
+      ) {
+        setError(
+          "Cross-site verification failed. Clear app data and try again.",
+        );
         Alert.alert(
           "Verification Failed",
-          "Settings → Apps → Gym Tracker → Storage → Clear Data, then try again."
+          "Settings → Apps → Gym Tracker → Storage → Clear Data, then try again.",
         );
       } else if (errorMessage.includes("invalid_request")) {
-        setError("Invalid OAuth request. Check Google Cloud Console configuration.");
+        setError(
+          "Invalid OAuth request. Check Google Cloud Console configuration.",
+        );
         Alert.alert(
           "Configuration Error",
-          "Ensure your redirect URI is registered in Google Cloud Console."
+          "Ensure your redirect URI is registered in Google Cloud Console.",
         );
       } else if (errorMessage.includes("Authorization Error")) {
-        setError("App not authorized. Check Google Cloud Console OAuth settings.");
+        setError(
+          "App not authorized. Check Google Cloud Console OAuth settings.",
+        );
         Alert.alert(
           "Authorization Failed",
           "Your app may not comply with Google OAuth security policies.\n\n" +
-          "Check: https://support.google.com/cloud/answer/7475711"
+            "Check: https://support.google.com/cloud/answer/7475711",
         );
       } else {
         setError(errorMessage);
@@ -226,10 +271,10 @@ export default function LoginScreen({ onGuestLogin }) {
     try {
       setLoading(true);
       console.log("[Auth] Exchanging ID token for Firebase credential...");
-      
+
       const credential = GoogleAuthProvider.credential(idToken);
       await signInWithCredential(auth, credential);
-      
+
       console.log("[Auth] Successfully signed in with Google");
       setLoading(false);
       // Navigation handled in App.js via auth state
@@ -238,22 +283,22 @@ export default function LoginScreen({ onGuestLogin }) {
       const errorMessage = err.message || "Unable to sign in";
       setError(errorMessage);
       setLoading(false);
-      
+
       // Handle specific Firebase auth errors
       if (errorMessage.includes("auth/invalid-credential")) {
         Alert.alert(
           "Invalid Credentials",
-          "The authentication token is invalid. Please try again."
+          "The authentication token is invalid. Please try again.",
         );
       } else if (errorMessage.includes("auth/operation-not-allowed")) {
         Alert.alert(
           "Feature Disabled",
-          "Google Sign-in is not enabled in Firebase. Enable it in Firebase Console."
+          "Google Sign-in is not enabled in Firebase. Enable it in Firebase Console.",
         );
       } else if (errorMessage.includes("auth/network-request-failed")) {
         Alert.alert(
           "Network Error",
-          "Failed to connect. Please check your internet connection."
+          "Failed to connect. Please check your internet connection.",
         );
       } else {
         Alert.alert("Sign-in Error", errorMessage);
@@ -263,7 +308,9 @@ export default function LoginScreen({ onGuestLogin }) {
 
   return (
     <View style={styles.container}>
-      {Platform.OS === 'android' && <View style={{ height: StatusBar.currentHeight }} />}
+      {Platform.OS === "android" && (
+        <View style={{ height: StatusBar.currentHeight }} />
+      )}
       <View style={styles.gradient} />
 
       <View style={styles.content}>
@@ -293,7 +340,8 @@ export default function LoginScreen({ onGuestLogin }) {
           <TouchableOpacity
             style={[
               styles.googleButton,
-              (!request || loading || !credentialsReady) && styles.buttonDisabled
+              (!request || loading || !credentialsReady) &&
+                styles.buttonDisabled,
             ]}
             onPress={() => {
               setError(null);
@@ -316,15 +364,17 @@ export default function LoginScreen({ onGuestLogin }) {
             onPress={loginAsGuest}
             disabled={loading}
           >
-            <MaterialCommunityIcons 
-              name="account-circle-outline" 
-              size={20} 
-              color={loading ? COLORS.muted : COLORS.accent} 
+            <MaterialCommunityIcons
+              name="account-circle-outline"
+              size={20}
+              color={loading ? COLORS.muted : COLORS.accent}
             />
-            <Text style={[
-              styles.guestButtonText,
-              loading && { color: COLORS.muted }
-            ]}>
+            <Text
+              style={[
+                styles.guestButtonText,
+                loading && { color: COLORS.muted },
+              ]}
+            >
               Continue as Guest
             </Text>
           </TouchableOpacity>
@@ -343,14 +393,13 @@ export default function LoginScreen({ onGuestLogin }) {
           {/* Debug Info (only in development) */}
           {__DEV__ && (
             <View style={styles.debugBox}>
-              <Text style={styles.debugText}>
-                Platform: {Platform.OS}
-              </Text>
+              <Text style={styles.debugText}>Platform: {Platform.OS}</Text>
               <Text style={styles.debugText}>
                 Web ID: {process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID ? "✓" : "✗"}
               </Text>
               <Text style={styles.debugText}>
-                Android ID: {process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ? "✓" : "✗"}
+                Android ID:{" "}
+                {process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID ? "✓" : "✗"}
               </Text>
               <Text style={styles.debugText}>
                 Request Ready: {request ? "✓" : "✗"}

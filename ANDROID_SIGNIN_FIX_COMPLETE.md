@@ -3,6 +3,7 @@
 ## What Was Fixed
 
 ### 1. **LoginScreen.js - Enhanced Error Handling**
+
 - ✅ Validates OAuth credentials at startup
 - ✅ Shows specific error messages for each failure type
 - ✅ Detects platform-specific missing credentials (Android/iOS)
@@ -11,12 +12,14 @@
 - ✅ Development debug info shows credential status
 
 ### 2. **App.js - Error Boundary**
+
 - ✅ Catches app crashes and displays recovery UI
 - ✅ Prevents app from force-closing
 - ✅ Shows detailed error messages
 - ✅ "Try Again" button to recover
 
 ### 3. **.env & .env.example - Credential Templates**
+
 - ✅ Added placeholders for Android and iOS Client IDs
 - ✅ Clear instructions on how to get each credential
 - ✅ Comments explaining the purpose of each variable
@@ -41,6 +44,7 @@ This will show you the SHA-1 fingerprint. **Copy this value.**
 3. Navigate to **Credentials** (left sidebar)
 
 #### For Android OAuth:
+
 4. Click **+ Create Credentials** → **OAuth 2.0 Client ID**
 5. Select **Android**
 6. Fill in:
@@ -49,6 +53,7 @@ This will show you the SHA-1 fingerprint. **Copy this value.**
 7. Click **Create** and copy the Android Client ID
 
 #### Ensure Redirect URIs are set for Web OAuth:
+
 8. Go back to Credentials → select **Web client**
 9. Under "Authorized redirect URIs", add these:
    ```
@@ -81,6 +86,7 @@ expo start --clear
 ## Testing Checklist
 
 ### On Virtual Phone (Android Studio Emulator):
+
 - [ ] App launches without crashing
 - [ ] Login screen displays with both buttons
 - [ ] Tap "Sign in with Google"
@@ -88,12 +94,14 @@ expo start --clear
 - [ ] After sign-in, Dashboard displays with your email
 
 ### On Physical Phone:
+
 - [ ] Install the .apk file
 - [ ] App opens successfully
 - [ ] Login process works as expected
 - [ ] App persists after signing in
 
 ### Error Scenarios (should be handled gracefully):
+
 - [ ] Close app during sign-in → app restarts normally
 - [ ] No internet → clear error message shown
 - [ ] Wrong credentials → helpful error with next steps
@@ -104,7 +112,9 @@ expo start --clear
 ## Troubleshooting
 
 ### Problem: "Cross-Site request verification failed"
+
 **Solution:**
+
 ```bash
 # Clear app data on device
 Settings → Apps → Gym Tracker → Storage → Clear Data
@@ -117,9 +127,11 @@ eas build -p android --profile preview
 ```
 
 ### Problem: "You can't sign in to this app because it doesn't comply with Google's Auth 2.0 policy"
+
 **Causes & Solutions:**
 
 1. **SHA-1 fingerprint doesn't match**
+
    ```bash
    eas credentials -p android
    # Compare the SHA-1 with what's in Google Cloud Console
@@ -135,7 +147,9 @@ eas build -p android --profile preview
    - Format should end with `.apps.googleusercontent.com`
 
 ### Problem: App crashes immediately after opening
+
 **Check logs:**
+
 ```bash
 # On emulator
 adb logcat | grep GymTracker
@@ -145,7 +159,9 @@ adb logcat | grep GymTracker
 ```
 
 ### Problem: OAuth credentials undefined on Android
+
 **Verify:**
+
 1. `.env` file exists in project root
 2. Both `EXPO_PUBLIC_GOOGLE_CLIENT_ID` and `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` are set
 3. No typos in variable names
@@ -179,13 +195,17 @@ adb logcat | grep GymTracker
 ## Development Debugging
 
 ### Enable Detailed Logging
+
 In development, the LoginScreen will show a debug box with:
+
 - Platform (android/web/ios)
 - Credential status (✓/✗)
 - OAuth request ready status
 
 ### Monitor Auth Flow
+
 Open your browser/device console and search for `[Auth]` logs:
+
 ```
 [Auth] Starting Google Sign-in with useProxy: true...
 [Auth] Exchanging ID token for Firebase credential...
@@ -193,6 +213,7 @@ Open your browser/device console and search for `[Auth]` logs:
 ```
 
 ### Check Environment Variables
+
 ```bash
 # Verify env vars are set
 env | grep EXPO_PUBLIC_GOOGLE
@@ -229,11 +250,11 @@ eas build -p android --profile production
 
 ## Quick Reference
 
-| Issue | Fix |
-|-------|-----|
-| "Cross-Site verification" | Clear app data |
-| "Authorization Error" | Check Google Cloud OAuth settings |
-| "Invalid request" | Verify redirect URIs are registered |
-| App crashes | Check error boundary message |
-| Can't sign in | Check .env file has Android Client ID |
-| Guest mode only | Firebase anonymous auth failed (fallback works) |
+| Issue                     | Fix                                             |
+| ------------------------- | ----------------------------------------------- |
+| "Cross-Site verification" | Clear app data                                  |
+| "Authorization Error"     | Check Google Cloud OAuth settings               |
+| "Invalid request"         | Verify redirect URIs are registered             |
+| App crashes               | Check error boundary message                    |
+| Can't sign in             | Check .env file has Android Client ID           |
+| Guest mode only           | Firebase anonymous auth failed (fallback works) |

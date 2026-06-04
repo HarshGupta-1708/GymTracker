@@ -1,7 +1,9 @@
 # Google OAuth Android Fix - Complete Setup Guide
 
 ## Problem Summary
+
 Your app works on web but fails on Android because:
+
 1. **Missing Android OAuth Credentials** - You only have the web client ID
 2. **Incorrect Redirect URI Configuration** - Google Cloud Console not set up for Expo proxy URLs
 3. **Missing Error Handling** - No fallback when Google Auth fails
@@ -37,6 +39,7 @@ This will show you the SHA-1 fingerprint. **Copy this value - you'll need it soo
 For web to continue working, ensure these redirect URIs are added to your **Web OAuth Client**:
 
 In Google Cloud Console → Credentials → Web client:
+
 - `https://auth.expo.io` (Expo proxy - for all mobile)
 - `https://127.0.0.1:19006` (Local web dev)
 - `http://localhost:3000` (Local web dev)
@@ -87,15 +90,18 @@ eas build -p android --profile preview --clear-cache
 ## Troubleshooting
 
 ### Still getting "Cross-Site request verification failed"?
+
 - Check that your SHA-1 fingerprint in Google Cloud matches your signing key
 - Clear app data: Settings → Apps → Gym Tracker → Storage → Clear Data
 
 ### Still getting "You can't sign in to this app"?
+
 - Verify the Android Client ID is in your `.env` file
 - Run `eas credentials -p android` again to get the correct fingerprint
 - Ensure `useProxy: true` is being used (it is in the code)
 
 ### App crashes immediately?
+
 - Check logcat: `adb logcat | grep GymTracker` (if using emulator)
 - The error handling will now show Alert dialogs with specific errors
 
