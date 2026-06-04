@@ -1,0 +1,527 @@
+--------- beginning of main
+06-04 12:45:28.483  1770  1770 I adbd    : adbd service requested 'shell,v2,raw:monkey -p com.harshgupta1708.gymtracker -c android.intent.category.LAUNCHER 1'
+06-04 12:45:28.545 10556 10556 D AndroidRuntime: >>>>>> START com.android.internal.os.RuntimeInit uid 2000 <<<<<<
+06-04 12:45:28.547 10556 10556 I AndroidRuntime: Using default boot image
+06-04 12:45:28.547 10556 10556 I AndroidRuntime: Leaving lock profiling enabled
+06-04 12:45:28.548 10556 10556 I app_process: Core platform API enforcement enabled from the hiddenapi_platform_enforcement flag and the device API level
+06-04 12:45:28.548 10556 10556 I app_process: Using generational CollectorTypeCMC GC.
+06-04 12:45:28.574 10556 10556 D nativeloader: InitDefaultPublicLibraries for_preload=1: libandroid.so:libaaudio.so:libamidi.so:libbinder_ndk.so:libc.so:libcamera2ndk.so:libdl.so:libEGL.so:libGLESv1_CM.so:libGLESv2.so:libGLESv3.so:libicu.so:libicui18n.so:libicuuc.so:libjnigraphics.so:liblog.so:libmediandk.so:libm.so:libnativehelper.so:libnativewindow.so:libOpenMAXAL.so:libOpenSLES.so:libRS.so:libstdc++.so:libsync.so:libvulkan.so:libwebviewchromium_plat_support.so:libz.so
+06-04 12:45:28.579 10556 10556 D nativeloader: Load libicu_jni.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+06-04 12:45:28.579 10556 10556 D app_process: u_setTimeZoneFilesDirectory("/apex/com.android.tzdata/etc/tz/versioned/10/icu") succeeded. 
+06-04 12:45:28.579 10556 10556 D app_process: I18n APEX ICU file found: /apex/com.android.i18n/etc/icu/icudt78l.dat
+06-04 12:45:28.579 10556 10556 D nativeloader: Load libjavacore.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+06-04 12:45:28.580 10556 10556 D nativeloader: Load libopenjdk.so using APEX ns com_android_art for caller /apex/com.android.art/javalib/core-oj.jar: ok
+06-04 12:45:28.580 10556 10556 I app_process: Priority-to-niceness mapping: 19, 16, 13, 10, 0, -2, -4, -5, -6, -8
+06-04 12:45:28.588 10556 10556 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+06-04 12:45:28.589 10556 10556 D AndroidRuntime: Calling main entry com.android.commands.monkey.Monkey
+06-04 12:45:28.589 10556 10556 D nativeloader: Load /system/lib64/libmonkey_jni.so using ns default for caller /system/framework/monkey.jar in same partition (is_bridged=0): ok
+06-04 12:45:28.590 10556 10556 W Monkey  : args: [-p, com.harshgupta1708.gymtracker, -c, android.intent.category.LAUNCHER, 1]
+06-04 12:45:28.591 10556 10556 I AconfigPackage: android.media.swcodec.flags is mapped to com.android.media.swcodec
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.permission.flags is mapped to com.android.permission
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.permissioncontroller.flags is mapped to com.android.permission
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.google.android.widevine.flags is mapped to com.google.android.widevine
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.icu is mapped to com.android.i18n
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.appsearch.flags is mapped to com.android.appsearch
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.uprobestats.flags is mapped to com.android.uprobestats
+06-04 12:45:28.591 10556 10556 I AconfigPackage: android.uprobestats.mainline.flags is mapped to com.android.uprobestats
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.crashrecovery.flags is mapped to com.android.crashrecovery
+06-04 12:45:28.591 10556 10556 I AconfigPackage: android.provider.flags is mapped to com.android.configinfrastructure
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.server.deviceconfig is mapped to com.android.configinfrastructure
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.art.flags is mapped to com.android.art
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.art.rw.flags is mapped to com.android.art
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.libcore is mapped to com.android.art
+06-04 12:45:28.591 10556 10556 I AconfigPackage: android.telecom.flags is mapped to com.android.telephonycore
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.internal.telecom.flags is mapped to com.android.telephonycore
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.telephony.flags is mapped to com.android.telephonycore
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.media.extractor.flags is mapped to com.android.media
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.media.metrics.flags is mapped to com.android.media
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.media.mainline.flags is mapped to com.android.media
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.wifi.flags is mapped to com.android.wifi
+06-04 12:45:28.591 10556 10556 I AconfigPackage: com.android.org.conscrypt.flags is mapped to com.android.conscrypt
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.org.conscrypt.net.flags is mapped to com.android.conscrypt
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.healthfitness.flags is mapped to com.android.healthfitness
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.ipsec.flags is mapped to com.android.ipsec
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.nfc.module.flags is mapped to com.android.nfcservices
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.nfc.module.nonexported.flags is mapped to com.android.nfcservices
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.adservices.ondevicepersonalization.flags is mapped to com.android.ondevicepersonalization
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.adbd.flags is mapped to com.android.adbd
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.bluetooth.beta.flags is mapped to com.android.bt
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.bluetooth.flags is mapped to com.android.bt
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.devicelock.flags is mapped to com.android.devicelock
+06-04 12:45:28.592 10556 10556 I AconfigPackage: android.os.profiling is mapped to com.android.profiling
+06-04 12:45:28.592 10556 10556 I AconfigPackage: android.os.profiling.anomaly.flags is mapped to com.android.profiling
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.os.statsd.flags is mapped to com.android.os.statsd
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.webapp.flags is mapped to com.android.webapp
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.rkpd.flags is mapped to com.android.rkpd
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.cellbroadcastreceiver.flags is mapped to com.android.cellbroadcast
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.adservices.flags is mapped to com.android.adservices
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.sdksandbox.flags is mapped to com.android.adservices
+06-04 12:45:28.592 10556 10556 I AconfigPackage: android.app.sdksandbox.flags is mapped to com.android.adservices
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.uwb.flags is mapped to com.android.uwb
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.ranging.flags is mapped to com.android.uwb
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.npumanager is mapped to com.android.npumanager
+06-04 12:45:28.592 10556 10556 I AconfigPackage: android.graphics.pdf.flags is mapped to com.android.mediaprovider
+06-04 12:45:28.592 10556 10556 I AconfigPackage: com.android.providers.media.flags is mapped to com.android.mediaprovider
+06-04 12:45:28.592 10556 10556 I AconfigPackage: android.graphics.pdf.flags.readonly is mapped to com.android.mediaprovider
+06-04 12:45:28.593 10556 10556 I AconfigPackage: com.android.tethering.mainline.beta is mapped to com.android.tethering
+06-04 12:45:28.593 10556 10556 I AconfigPackage: android.net.http is mapped to com.android.tethering
+06-04 12:45:28.593 10556 10556 I AconfigPackage: com.android.tethering.readonly.flags is mapped to com.android.tethering
+06-04 12:45:28.593 10556 10556 I AconfigPackage: android.net.vcn is mapped to com.android.tethering
+06-04 12:45:28.593 10556 10556 I AconfigPackage: com.android.net.flags is mapped to com.android.tethering
+06-04 12:45:28.593 10556 10556 I AconfigPackage: com.android.tethering.flags is mapped to com.android.tethering
+06-04 12:45:28.593 10556 10556 I AconfigPackage: com.android.tethering.beta.test is mapped to com.android.tethering
+06-04 12:45:28.593 10556 10556 I AconfigPackage: com.android.nearby.flags is mapped to com.android.tethering
+06-04 12:45:28.593 10556 10556 I AconfigPackage: com.android.net.thread.flags is mapped to com.android.tethering
+06-04 12:45:28.593 10556 10556 I AconfigPackage: com.android.net.ct.flags is mapped to com.android.tethering
+06-04 12:45:28.593 10556 10556 I AconfigPackage: com.android.system.virtualmachine.flags is mapped to com.android.virt
+06-04 12:45:28.593 10556 10556 E FeatureFlagsImplExport: android.os.flagging.AconfigStorageReadException: ERROR_PACKAGE_NOT_FOUND: package android.xr cannot be found on the device
+06-04 12:45:28.595   638   748 D EventHub: No input device configuration file found for device 'Monkey touch'.
+06-04 12:45:28.595   638   748 I EventHub: usingClockIoctl=true
+06-04 12:45:28.595   638   748 I EventHub: New device: id=17, fd=486, path='/dev/input/event13', name='Monkey touch', classes=TOUCH | TOUCH_MT, configuration='', keyLayout='', keyCharacterMap='', builtinKeyboard=false, 
+06-04 12:45:28.596 10556 10556 W Monkey  :  arg: "-p"
+06-04 12:45:28.596 10556 10556 W Monkey  :  arg: "com.harshgupta1708.gymtracker"
+06-04 12:45:28.596 10556 10556 W Monkey  :  arg: "-c"
+06-04 12:45:28.596 10556 10556 W Monkey  :  arg: "android.intent.category.LAUNCHER"
+06-04 12:45:28.596 10556 10556 W Monkey  :  arg: "1"
+06-04 12:45:28.596 10556 10556 W Monkey  : data="com.harshgupta1708.gymtracker"
+06-04 12:45:28.596   638   748 I InputReader: Device reconfigured: id=17, name='Monkey touch', size 1080x2400, orientation Rotation0, mode DIRECT, display id 0
+06-04 12:45:28.596 10556 10556 W Monkey  : data="android.intent.category.LAUNCHER"
+06-04 12:45:28.596   638   748 I InputReader: Device added: id=17, eventHubId=17, name='Monkey touch', descriptor='e1fe28b90f915c7d1febbd52c1ef84b3c4cbed9f',sources=TOUCHSCREEN
+--------- beginning of system
+06-04 12:45:28.601   638  1061 W ActivityManager: registerReceiverWithFeature: no app for null
+06-04 12:45:28.602   638   660 D WindowManager: Direct invocation of sendNewConfiguration: Display{#0 state=ON size=1080x2400 ROTATION_0}
+06-04 12:45:28.602   638   660 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:28.602   638   660 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:28.602   638   660 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:28.602  1083  1177 V ShellDesktopMode: DesktopDisplayModeController: canDesktopFirstModeBeEnabledOnDefaultDisplay: isDefaultDisplayDesktopEligible=false
+06-04 12:45:28.602  1083  1177 V WindowManagerShell: Directly starting a new transition type=CHANGE wct=WindowContainerTransaction { changes= {android.os.BinderProxy@bc2e0e={isTaskMoveAllowed:false,}} hops= [] flags= 0 errorCallbackToken=null taskFragmentOrganizer=null } handler=null
+06-04 12:45:28.603   638  1186 V WindowManager: deferTransitionReady deferReadyDepth=1 stack=com.android.server.wm.WindowOrganizerController.applyTransaction:717 com.android.server.wm.WindowOrganizerController.applyTransaction:651 com.android.server.wm.WindowOrganizerController.lambda$startTransition$3:388 com.android.server.wm.WindowOrganizerController.$r8$lambda$PHnU0rj5Bcvaq0dL-Wi7kOJt8bo:0 com.android.server.wm.WindowOrganizerController$$ExternalSyntheticLambda5.onCollectStarted:0 
+06-04 12:45:28.604   489   538 I libbinder.BpBinder: onLastStrongRef automatically unlinking death recipients for binder (0xb40071abfe0568c0) with descriptor: '(not cached)'
+06-04 12:45:28.604  7930  7930 I PkDeviceHelper: PkDeviceHelper.refreshDevices():87 refreshing devices
+06-04 12:45:28.604  7930  7930 I PkDeviceHelper: PkDeviceHelper.addDevice():125 device qwerty2 added
+06-04 12:45:28.604   638  1186 V WindowManager: continueTransitionReady deferReadyDepth=0 stack=com.android.server.wm.WindowOrganizerController.applyTransaction:864 com.android.server.wm.WindowOrganizerController.applyTransaction:651 com.android.server.wm.WindowOrganizerController.lambda$startTransition$3:388 com.android.server.wm.WindowOrganizerController.$r8$lambda$PHnU0rj5Bcvaq0dL-Wi7kOJt8bo:0 com.android.server.wm.WindowOrganizerController$$ExternalSyntheticLambda5.onCollectStarted:0 
+06-04 12:45:28.605   638   657 V WindowManager: Sent Transition (#106) createdAt=06-04 12:45:28.603
+06-04 12:45:28.605   638   657 V WindowManager:     startWCT=WindowContainerTransaction { changes= {RemoteToken{99eda00 DefaultTaskDisplayArea@198993308}={isTaskMoveAllowed:false,}} hops= [] flags= 0 errorCallbackToken=null taskFragmentOrganizer=null }
+06-04 12:45:28.605   638   657 V WindowManager:     info={id=106 t=CHANGE f=0x0 trk=0 r=[] c=[]}
+06-04 12:45:28.605  1083  1107 V WindowManagerShell: onTransitionReady(transaction=2740189141763)
+06-04 12:45:28.606  1083  1177 V WindowManagerShell: onTransitionReady (#106) android.os.BinderProxy@396162d: {id=106 t=CHANGE f=0x0 trk=0 r=[] c=[]}
+06-04 12:45:28.606  1083  1177 V WindowManagerShell: No transition roots in (#106) android.os.BinderProxy@396162d@0 so abort
+06-04 12:45:28.606  1083  1177 V WindowManagerShell: Transition animation finished (aborted=true), notifying core (#106) android.os.BinderProxy@396162d@0
+06-04 12:45:28.607   638  1061 W ActivityTaskManager: callingPackage for (uid=2000, pid=10556) has no WPC
+06-04 12:45:28.608   638  1061 V GrammaticalInflectionUtils: AttributionSource: android.content.AttributionSource@9f9891d5 does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+06-04 12:45:28.609  1398  1398 D RecentsView: onTaskDisplayChanged: 33, new displayId = 0
+06-04 12:45:28.609   489   624 I libbinder.BpBinder: onLastStrongRef automatically unlinking death recipients for binder (0xb40071abfe0568c0) with descriptor: '(not cached)'
+06-04 12:45:28.612  1398  1398 D BaseActivity: Launcher flags updated: [state_started|state_resumed|state_deferred_resumed|state_window_focused|state_user_active] -[]
+06-04 12:45:28.612   638  1061 V ActivityTaskManager: TaskLaunchParamsModifier: phase=3 task=Task{f71d9ea #33 type=standard A=10228:com.harshgupta1708.gymtracker} activity=ActivityRecord{226913749 u0 com.harshgupta1708.gymtracker/.MainActivity t-1} display-from-task=0 display-id=0 task-display-area-windowing-mode=1 suggested-display-area=DefaultTaskDisplayArea@198993308 inherit-from-task=fullscreen non-freeform-task-display-area display-area=DefaultTaskDisplayArea@198993308 skip-bounds-fullscreen
+06-04 12:45:28.612   638  1061 I ActivityTaskManager: START u0 {act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.harshgupta1708.gymtracker/.MainActivity} with LAUNCH_SINGLE_TASK from uid 2000 (com.android.shell) (BAL_ALLOW_PERMISSION) result code=0
+06-04 12:45:28.612 10556 10556 I Monkey  : Events injected: 1
+06-04 12:45:28.612  1398  1398 D BaseActivity: Launcher flags updated: [state_started|state_resumed|state_deferred_resumed|state_window_focused] -[state_user_active]
+06-04 12:45:28.612  1398  1398 D BaseActivity: Launcher flags updated: [state_started|state_window_focused] -[state_resumed|state_deferred_resumed]
+06-04 12:45:28.612  1398  1398 W SplitSelectStateCtor: Missing session instanceIds
+06-04 12:45:28.612  1398  1398 D StatsLog: LAUNCHER_SPLIT_SELECTION_EXIT_INTERRUPTED
+06-04 12:45:28.614   638  1061 V WindowManager: Defer transition id=107 for TaskFragmentTransaction=android.os.Binder@5cd1251
+06-04 12:45:28.614   638   657 V WindowManager: Finish Transition (#106): created at 06-04 12:45:28.603 collect-started=0.022ms started=0.029ms ready=1.181ms sent=2.035ms commit=4.129ms finished=11.444ms
+06-04 12:45:28.615  1083  1177 V WindowManagerShell: Track 0 became idle
+06-04 12:45:28.615  1083  1177 V WindowManagerShell: All active transition animations finished
+06-04 12:45:28.615  1083  1177 V WindowManagerShell: Transition requested (#107): android.os.BinderProxy@83c40f3 TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=33 effectiveUid=10228 displayId=0 isRunning=true baseIntent=Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.harshgupta1708.gymtracker/.MainActivity } baseActivity=ComponentInfo{com.harshgupta1708.gymtracker/com.harshgupta1708.gymtracker.MainActivity} topActivity=ComponentInfo{com.harshgupta1708.gymtracker/com.harshgupta1708.gymtracker.MainActivity} origActivity=null realActivity=ComponentInfo{com.harshgupta1708.gymtracker/com.harshgupta1708.gymtracker.MainActivity} realActivityIsAppLockEnabled=false numActivities=1 lastActiveTime=2851220 supportsMultiWindow=true supportsMultiWindowWithoutConstraints=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=220 token=WCT{android.os.BinderProxy@c63e1b0} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 0 - 0, 0) topActivityInfo=ActivityInfo{36ae829 com.harshgupta1708.gymtracker.MainActivity} launchCookies=[] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=false isInteractive=false isVisible=false isVisibleRequested=false isTopActivityNoDisplay=false isSleeping=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBounds=null leafTaskBoundsFromOptions= false capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=503 topActivityRequestOpenInBrowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false isLeafTask= true eligibleForLetterboxEducation= false isLetterboxEducationEnabled= true isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 topActivityAppBounds=Rect(0, 0 - 1080, 2400) isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null topNonResizableActivityAspectRatio=-1.0} topActivityMainWindowFrame=null isAppBubble=false}, pipChange = null, remoteTransitionInfo = null, displayChanges = null, requestedLocation = null, userChange = null, windowingLayerChange = null, fullscreenRequestChange = null, flags = 0, debugId = 107 }
+06-04 12:45:28.615  1083  1177 W DisconnectHandler: No disconnect change found in the transition, not handling request.
+06-04 12:45:28.615  1083  1177 V ShellDesktopMode: DesktopTasksController: skipping handleRequest reason=triggerTask's display doesn't support desktop mode
+06-04 12:45:28.615  1083  1177 D ShellSplitScreen: logExit: no-op, mLoggerSessionId is null
+06-04 12:45:28.616   638   652 V WindowManager: Continue transition id=107 for TaskFragmentTransaction=android.os.Binder@5cd1251
+06-04 12:45:28.616   638   660 V GrammaticalInflectionUtils: AttributionSource: android.content.AttributionSource@9f9891d5 does not have READ_SYSTEM_GRAMMATICAL_GENDER permission.
+06-04 12:45:28.616  1083  1177 D WindowManagerShell: setLauncherKeepClearAreaHeight: visible=false, height=495
+06-04 12:45:28.616   638   652 D CompatChangeReporter: Compat change id reported: 377864165; UID 10228; state: ENABLED
+06-04 12:45:28.617   546   599 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:28.617  1083  1177 V RecentTasksController: Notify recent tasks changed
+06-04 12:45:28.617  1083  1177 D ShellDesktopMode: DesktopRepository(0): Removes freeform task: taskId=30
+06-04 12:45:28.617  1083  1177 W ShellDesktopMode: DesktopRepository(0): No display id found for task: taskId=30
+06-04 12:45:28.617  1083  1177 V RecentTasksController: Notify recent tasks changed
+06-04 12:45:28.618  1398  1398 D RecentTasksList: invalidateLoadedTasks - previous requestLoadId: -1
+06-04 12:45:28.618   546   599 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:28.618  1398  1398 D RecentTasksList: invalidateLoadedTasks - previous requestLoadId: -1
+06-04 12:45:28.618 10556 10556 I Monkey  : ## Network stats: elapsed time=13ms (0ms mobile, 0ms wifi, 13ms not connected)
+06-04 12:45:28.619 10556 10556 I app_process: System.exit called, status: 0
+06-04 12:45:28.619 10556 10556 I AndroidRuntime: VM exiting with result code 0.
+06-04 12:45:28.623   638  2365 W InputChannel-JNI: Channel already disposed.
+06-04 12:45:28.623   437   437 D Zygote  : Forked child process 10568
+06-04 12:45:28.624   638   667 I ActivityManager: Start proc 10568:com.harshgupta1708.gymtracker/u0a228 for next-top-activity {com.harshgupta1708.gymtracker/com.harshgupta1708.gymtracker.MainActivity}
+06-04 12:45:28.626  1083  1229 D WindowOnBackDispatcher: setTopOnBackInvokedCallback (unwrapped): android.view.ViewRootImpl$$ExternalSyntheticLambda14@6cb16e0
+06-04 12:45:28.626   638  2277 D CoreBackPreview: Window{ff828d u0 Splash Screen com.harshgupta1708.gymtracker}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@e6eba89, mPriority=0, mIsAnimationCallback=false, mOverrideBehavior=0}
+06-04 12:45:28.626   638   748 I EventHub: Removing device Monkey touch due to epoll hang-up event.
+06-04 12:45:28.626   638   748 I EventHub: Removed device: path=/dev/input/event13 name=Monkey touch id=17 fd=486 classes=TOUCH | TOUCH_MT
+06-04 12:45:28.627   638  2277 D WindowManager: setClientSurface Surface(name=VRI-Splash Screen com.harshgupta1708.gymtracker#903)/@0xf15a8e for ff828d Splash Screen com.harshgupta1708.gymtracker
+06-04 12:45:28.628  1083  1229 I Surface : Creating surface for consumer unnamed-1083-30 with slotExpansion=1 for 64 slots
+06-04 12:45:28.629  1083  1229 I Surface : Creating surface for consumer VRI[gymtracker]#30(BLAST Consumer)30 with slotExpansion=1 for 64 slots
+06-04 12:45:28.636  1083  2017 V WindowManagerShell: onTransitionReady(transaction=2740189141814)
+06-04 12:45:28.636  1083  1177 V WindowManagerShell: onTransitionReady (#107) android.os.BinderProxy@83c40f3: {id=107 t=OPEN f=0x0 trk=1 r=[0@Point(0, 0)] c=[
+06-04 12:45:28.636  1083  1177 V WindowManagerShell:         {m=OPEN f=MOVE_TO_TOP|FLAG_CHANGED_INTERACTIVE leash=Surface(name=Task=33#900)/@0x4c1f6d1 sb=Rect(0, 0 - 1080, 2400) eb=Rect(0, 0 - 1080, 2400) epz=Point(1080, 2400) d=0 taskParent=-1 winMode=1 userId=0},
+06-04 12:45:28.636  1083  1177 V WindowManagerShell:         {m=TO_BACK f=SHOW_WALLPAPER|FLAG_CHANGED_INTERACTIVE leash=Surface(name=Task=1#35)/@0x66ff536 sb=Rect(0, 0 - 1080, 2400) eb=Rect(0, 0 - 1080, 2400) epz=Point(1080, 2400) d=0 taskParent=-1 winMode=1 userId=0},
+06-04 12:45:28.636  1083  1177 V WindowManagerShell:         {m=TO_BACK f=IS_WALLPAPER leash=Surface(name=WallpaperWindowToken{ea77efd}#39)/@0x8260c37 sb=Rect(0, 0 - 1080, 2400) eb=Rect(0, 0 - 1080, 2400) epz=Point(1080, 2400) d=0}
+06-04 12:45:28.636  1083  1177 V WindowManagerShell:     ]}
+06-04 12:45:28.636   638   657 V WindowManager: Sent Transition (#107) createdAt=06-04 12:45:28.608 via request=TransitionRequestInfo { type = OPEN, triggerTask = TaskInfo{userId=0 taskId=33 effectiveUid=10228 displayId=0 isRunning=true baseIntent=Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10200000 cmp=com.harshgupta1708.gymtracker/.MainActivity } baseActivity=ComponentInfo{com.harshgupta1708.gymtracker/com.harshgupta1708.gymtracker.MainActivity} topActivity=ComponentInfo{com.harshgupta1708.gymtracker/com.harshgupta1708.gymtracker.MainActivity} origActivity=null realActivity=ComponentInfo{com.harshgupta1708.gymtracker/com.harshgupta1708.gymtracker.MainActivity} realActivityIsAppLockEnabled=false numActivities=1 lastActiveTime=2851220 supportsMultiWindow=true supportsMultiWindowWithoutConstraints=true resizeMode=1 isResizeable=true minWidth=-1 minHeight=-1 defaultMinSize=220 token=WCT{RemoteToken{77f7645 Task{f71d9ea #33 type=standard A=10228:com.harshgupta1708.gymtracker}}} topActivityType=1 pictureInPictureParams=null shouldDockBigOverlays=false launchIntoPipHostTaskId=-1 lastParentTaskIdBeforePip=-1 displayCutoutSafeInsets=Rect(0, 0 - 0, 0) topActivityInfo=ActivityInfo{5ac919a com.harshgupta1708.gymtracker.MainActivity} launchCookies=[] positionInParent=Point(0, 0) parentTaskId=-1 isFocused=false isInteractive=false isVisible=false isVisibleRequested=false isTopActivityNoDisplay=false isSleeping=false locusId=null displayAreaFeatureId=1 isTopActivityTransparent=false isActivityStackTransparent=false lastNonFullscreenBounds=null leafTaskBoundsFromOptions= false capturedLink=null capturedLinkTimestamp=0 requestedVisibleTypes=503 topActivityRequestOpenInBrowserEducationTimestamp=0 appCompatTaskInfo=AppCompatTaskInfo { topActivityInSizeCompat=false isLeafTask= true eligibleForLetterboxEducation= false isLetterboxEducationEnabled= true isLetterboxDoubleTapEnabled= false eligibleForUserAspectRatioButton= false topActivityBoundsLetterboxed= false isFromLetterboxDoubleTap= false topActivityLetterboxVerticalPosition= -1 topActivityLetterboxHorizontalPosition= -1 topActivityLetterboxWidth=-1 topActivityLetterboxHeight=-1 topActivityAppBounds=Rect(0, 0 - 1080, 2400) isUserFullscreenOverrideEnabled=false isSystemFullscreenOverrideEnabled=false hasMinAspectRatioOverride=false topActivityLetterboxBounds=null topNonResizableActivityAspectRatio=-1.0} topActivityMainWindowFrame=null isAppBubble=false}, pipChange = null, remoteTransitionInfo = null, displayChanges = null, requestedLocation = null, userChange = null, windowingLayerChange = null, fullscreenRequestChange = null, flags = 0, debugId = 107 }
+06-04 12:45:28.636   638   657 V WindowManager:     startWCT=WindowContainerTransaction { changes= {} hops= [] flags= 0 errorCallbackToken=null taskFragmentOrganizer=null }
+06-04 12:45:28.636   638   657 V WindowManager:     info={id=107 t=OPEN f=0x0 trk=1 r=[0@Point(0, 0)] c=[
+06-04 12:45:28.636   638   657 V WindowManager:         {WCT{RemoteToken{77f7645 Task{f71d9ea #33 type=standard A=10228:com.harshgupta1708.gymtracker}}} m=OPEN f=MOVE_TO_TOP|FLAG_CHANGED_INTERACTIVE leash=Surface(name=Task=33#900)/@0x82f02af sb=Rect(0, 0 - 1080, 2400) eb=Rect(0, 0 - 1080, 2400) epz=Point(1080, 2400) d=0 taskParent=-1 winMode=1 userId=0},
+06-04 12:45:28.636   638   657 V WindowManager:         {WCT{RemoteToken{7934acf Task{46bd962 #1 type=home}}} m=TO_BACK f=SHOW_WALLPAPER|FLAG_CHANGED_INTERACTIVE leash=Surface(name=Task=1#35)/@0x2f0effc sb=Rect(0, 0 - 1080, 2400) eb=Rect(0, 0 - 1080, 2400) epz=Point(1080, 2400) d=0 taskParent=-1 winMode=1 userId=0},
+06-04 12:45:28.636   638   657 V WindowManager:         {m=TO_BACK f=IS_WALLPAPER leash=Surface(name=WallpaperWindowToken{ea77efd}#39)/@0xd6d9582 sb=Rect(0, 0 - 1080, 2400) eb=Rect(0, 0 - 1080, 2400) epz=Point(1080, 2400) d=0}
+06-04 12:45:28.636   638   657 V WindowManager:     ]}
+06-04 12:45:28.636  1083  1177 V WindowManagerShell: Playing animation for (#107) android.os.BinderProxy@83c40f3@1
+06-04 12:45:28.636  1083  1177 D ShellSplitScreen: startAnimation: transition=107 isSplitActive=false
+06-04 12:45:28.636  1083  1177 V ShellRecents: RecentsTransitionHandler.startAnimation: no controller found
+06-04 12:45:28.636  1083  1177 V ShellDesktopMode: DesktopMixedTransitionHandler: No pending desktop transition
+06-04 12:45:28.636  1083  1177 V WindowManagerShell: Transition doesn't have explicit remote, search filters for match for {id=107 t=OPEN f=0x0 trk=1 r=[0@Point(0, 0)] c=[{m=OPEN f=MOVE_TO_TOP|FLAG_CHANGED_INTERACTIVE leash=Surface(name=Task=33#900)/@0x4c1f6d1 sb=Rect(0, 0 - 1080, 2400) eb=Rect(0, 0 - 1080, 2400) epz=Point(1080, 2400) d=0 taskParent=-1 winMode=1 userId=0},{m=TO_BACK f=SHOW_WALLPAPER|FLAG_CHANGED_INTERACTIVE leash=Surface(name=Task=1#35)/@0x66ff536 sb=Rect(0, 0 - 1080, 2400) eb=Rect(0, 0 - 1080, 2400) epz=Point(1080, 2400) d=0 taskParent=-1 winMode=1 userId=0},{m=TO_BACK f=IS_WALLPAPER leash=Surface(name=WallpaperWindowToken{ea77efd}#39)/@0x8260c37 sb=Rect(0, 0 - 1080, 2400) eb=Rect(0, 0 - 1080, 2400) epz=Point(1080, 2400) d=0}]}
+06-04 12:45:28.636  1083  1177 V WindowManagerShell:  Checking filter Pair{{types=[] flags=0x0 notFlags=0x0 checks=[{atype=undefined independent=true modes=[CLOSE,TO_BACK] flags=IN_TASK_WITH_EMBEDDED_ACTIVITY mustBeTask=false order=ANY topActivity=null launchCookie=null taskFragmentToken=android.os.BinderProxy@2da5c25 windowingMode=undefined isCrossDisplayMove=false}]} RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@8aab1fa, appThread = android.app.IApplicationThread$Stub$Proxy@44423ab, debugName = overlayBackTransition, filter = {types=[] flags=0x0 notFlags=0x0 checks=[{atype=undefined independent=true modes=[CLOSE,TO_BACK] flags=IN_TASK_WITH_EMBEDDED_ACTIVITY mustBeTask=false order=ANY topActivity=null launchCookie=null taskFragmentToken=android.os.BinderProxy@2da5c25 windowingMode=undefined isCrossDisplayMove=false}]} }}
+06-04 12:45:28.637  1083  1177 V WindowManagerShell:  Checking filter Pair{{types=[] flags=0x0 notFlags=0x0 checks=[{atype=dream independent=true modes=[OPEN,TO_FRONT] flags=NONE mustBeTask=false order=ANY topActivity=null launchCookie=null windowingMode=undefined isCrossDisplayMove=false},{atype=home independent=true modes=[CLOSE,TO_BACK] flags=NONE mustBeTask=false order=ANY topActivity=null launchCookie=null windowingMode=undefined isCrossDisplayMove=false}]} RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@5237a08, appThread = android.app.IApplicationThread$Stub$Proxy@97995a1, debugName = LauncherToDream, filter = {types=[] flags=0x0 notFlags=0x0 checks=[{atype=dream independent=true modes=[OPEN,TO_FRONT] flags=NONE mustBeTask=false order=ANY topActivity=null launchCookie=null windowingMode=undefined isCrossDisplayMove=false},{atype=home independent=true modes=[CLOSE,TO_BACK] flags=NONE mustBeTask=false order=ANY topActivity=null launchCookie=null windowingMode=undefined isCrossDisplayMove=false}]} }}
+06-04 12:45:28.637  1083  1177 V WindowManagerShell:  Checking filter Pair{{types=[] flags=0x0 notFlags=0x0 checks=[{atype=standard independent=false modes=[CHANGE] flags=NONE mustBeTask=true order=ANY topActivity=null launchCookie=null windowingMode=undefined isCrossDisplayMove=true}]} RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@fe1f3c6, appThread = android.app.IApplicationThread$Stub$Proxy@c9f4f87, debugName = QuickstepDisplayMove, filter = {types=[] flags=0x0 notFlags=0x0 checks=[{atype=standard independent=false modes=[CHANGE] flags=NONE mustBeTask=true order=ANY topActivity=null launchCookie=null windowingMode=undefined isCrossDisplayMove=true}]} }}
+06-04 12:45:28.637  1083  1177 V WindowManagerShell:  Checking filter Pair{{types=[] flags=0x0 notFlags=0x100 checks=[{atype=home independent=true modes=[OPEN,TO_FRONT] flags=NONE mustBeTask=false order=ANY topActivity=ComponentInfo{com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity} launchCookie=null windowingMode=undefined isCrossDisplayMove=false},{atype=standard independent=true modes=[CLOSE,TO_BACK] flags=NONE mustBeTask=false order=ANY topActivity=null launchCookie=null windowingMode=undefined isCrossDisplayMove=false},{NOT atype=undefined independent=true modes=[] flags=NONE mustBeTask=true order=ANY topActivity=null launchCookie=null customAnim=true windowingMode=undefined isCrossDisplayMove=false}]} RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@37a2eb4, appThread = android.app.IApplicationThread$Stub$Proxy@878eadd, debugName = QuickstepLaunchHome, filter = {types=[] flags=0x0 notFlags=0x100 checks=[{atype=home independent=true modes=[OPEN,TO_FRONT] flags=NONE mustBeTask=false order=ANY topActivity=ComponentInfo{com.google.android.apps.nexuslauncher/com.google.android.apps.nexuslauncher.NexusLauncherActivity} launchCookie=null windowingMode=undefined isCrossDisplayMove=false},{atype=standard independent=true modes=[CLOSE,TO_BACK] flags=NONE mustBeTask=false order=ANY topActivity=null launchCookie=null windowingMode=undefined isCrossDisplayMove=false},{NOT atype=undefined independent=true modes=[] flags=NONE mustBeTask=true order=ANY topActivity=null launchCookie=null customAnim=true windowingMode=undefined isCrossDisplayMove=false}]} }}
+06-04 12:45:28.637  1083  1177 V WindowManagerShell:  Checking filter Pair{{types=[OPEN,TO_FRONT] flags=0x0 notFlags=0x0 checks=[{atype=standard independent=true modes=[OPEN,TO_FRONT] flags=NONE mustBeTask=true order=ANY topActivity=null launchCookie=null windowingMode=freeform isCrossDisplayMove=false}]} RemoteTransition { remoteTransition = android.window.IRemoteTransition$Stub$Proxy@2f12485, appThread = null, debugName = DesktopWindowLimitUnminimize, filter = {types=[OPEN,TO_FRONT] flags=0x0 notFlags=0x0 checks=[{atype=standard independent=true modes=[OPEN,TO_FRONT] flags=NONE mustBeTask=true order=ANY topActivity=null launchCookie=null windowingMode=freeform isCrossDisplayMove=false}]} }}
+06-04 12:45:28.637  1083  1177 V WindowManagerShell:  Delegate animation for (#107) to null
+06-04 12:45:28.637  1083  1177 V WindowManagerShell: start default transition animation, info = {id=107 t=OPEN f=0x0 trk=1 r=[0@Point(0, 0)] c=[{m=OPEN f=MOVE_TO_TOP|FLAG_CHANGED_INTERACTIVE leash=Surface(name=Task=33#900)/@0x4c1f6d1 sb=Rect(0, 0 - 1080, 2400) eb=Rect(0, 0 - 1080, 2400) epz=Point(1080, 2400) d=0 taskParent=-1 winMode=1 userId=0},{m=TO_BACK f=SHOW_WALLPAPER|FLAG_CHANGED_INTERACTIVE leash=Surface(name=Task=1#35)/@0x66ff536 sb=Rect(0, 0 - 1080, 2400) eb=Rect(0, 0 - 1080, 2400) epz=Point(1080, 2400) d=0 taskParent=-1 winMode=1 userId=0},{m=TO_BACK f=IS_WALLPAPER leash=Surface(name=WallpaperWindowToken{ea77efd}#39)/@0x8260c37 sb=Rect(0, 0 - 1080, 2400) eb=Rect(0, 0 - 1080, 2400) epz=Point(1080, 2400) d=0}]}
+06-04 12:45:28.637  1083  1177 V WindowManagerShell: loadAnimation: anim=android.view.animation.AnimationSet@1be2ec2 animAttr=0x13 type=OPEN isEntrance=false
+06-04 12:45:28.637  1083  1177 V WindowManagerShell: loadAnimation: anim=android.view.animation.AnimationSet@1c4750e animAttr=0x12 type=OPEN isEntrance=true
+06-04 12:45:28.638  1083  1177 V WindowManagerShell:  animated by com.android.wm.shell.transition.DefaultTransitionHandler@10ebf2b
+06-04 12:45:28.639  1083  1177 V ShellTaskOrganizer: Task appeared taskId=33 listener=FullscreenTaskListener
+06-04 12:45:28.640  1083  1177 V ShellTaskOrganizer: Fullscreen Task Appeared: #33
+06-04 12:45:28.640  1083  1177 V RecentTasksController: Notify recent tasks changed
+06-04 12:45:28.640  1398  1398 D RecentTasksList: invalidateLoadedTasks - previous requestLoadId: -1
+06-04 12:45:28.644  1398  1398 D BaseActivity: Launcher flags updated: [state_started] -[state_window_focused]
+06-04 12:45:28.660 10568 10568 I libprocessgroup: Created cgroup /sys/fs/cgroup/apps/uid_10228/pid_10568
+06-04 12:45:28.662 10568 10568 I Zygote  : Process 10568 created for com.harshgupta1708.gymtracker
+06-04 12:45:28.662 10568 10568 I 1708.gymtracker: Using generational CollectorTypeCMC GC.
+06-04 12:45:28.665 10568 10568 D nativeloader: Load libframework-connectivity-tiramisu-jni.so using APEX ns com_android_tethering for caller /apex/com.android.tethering/javalib/framework-connectivity-t.jar: ok
+06-04 12:45:28.669 10568 10568 D nativeloader: Configuring clns-9 for other apk /data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk. target_sdk_version=36, uses_libraries=, library_path=/data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/lib/arm64:/data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!/lib/arm64-v8a, permitted_path=/data:/mnt/expand:/data/user/0/com.harshgupta1708.gymtracker
+06-04 12:45:28.671 10568 10568 V GraphicsEnvironment: Currently set values for:
+06-04 12:45:28.671 10568 10568 V GraphicsEnvironment:   angle_gl_driver_selection_pkgs=[]
+06-04 12:45:28.671 10568 10568 V GraphicsEnvironment:   angle_gl_driver_selection_values=[]
+06-04 12:45:28.671 10568 10568 V GraphicsEnvironment: com.harshgupta1708.gymtracker is not listed in per-application setting
+06-04 12:45:28.671 10568 10568 V GraphicsEnvironment: No special selections for ANGLE, returning default driver choice
+06-04 12:45:28.671 10568 10568 V GraphicsEnvironment: Neither updatable production driver nor prerelease driver is supported.
+06-04 12:45:28.675   638   748 I InputReader: Device removed: id=17, eventHubId=17, name='Monkey touch', descriptor='e1fe28b90f915c7d1febbd52c1ef84b3c4cbed9f', sources=TOUCHSCREEN
+06-04 12:45:28.679   638   660 D WindowManager: Direct invocation of sendNewConfiguration: Display{#0 state=ON size=1080x2400 ROTATION_0}
+06-04 12:45:28.680   638   748 I EventHub: Removing device '/dev/input/event13' due to inotify event
+06-04 12:45:28.680   638   660 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:28.680   638   660 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:28.680   638   660 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:28.680  1083  1177 V ShellDesktopMode: DesktopDisplayModeController: canDesktopFirstModeBeEnabledOnDefaultDisplay: isDefaultDisplayDesktopEligible=false
+06-04 12:45:28.681  1083  1177 V WindowManagerShell: Directly starting a new transition type=CHANGE wct=WindowContainerTransaction { changes= {android.os.BinderProxy@bc2e0e={isTaskMoveAllowed:false,}} hops= [] flags= 0 errorCallbackToken=null taskFragmentOrganizer=null } handler=null
+06-04 12:45:28.681 10568 10568 W SoLoader: Initializing SoLoader: 0
+06-04 12:45:28.681 10568 10568 W SoLoader: Recording new base apk path: /data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk
+06-04 12:45:28.681 10568 10568 W SoLoader: Previously recorded 0 base apk paths.
+06-04 12:45:28.681 10568 10568 I SoLoader: Preparing SO source: DirectorySoSource[root = /vendor/lib64 flags = 2]
+06-04 12:45:28.681   638   660 W PermissionService: getPermissionFlags: Unknown user -1
+06-04 12:45:28.681   638   660 W PermissionService: getPermissionFlags: Unknown user -1
+06-04 12:45:28.681   638  2365 V WindowManager: deferTransitionReady deferReadyDepth=1 stack=com.android.server.wm.WindowOrganizerController.applyTransaction:717 com.android.server.wm.WindowOrganizerController.applyTransaction:651 com.android.server.wm.WindowOrganizerController.lambda$startTransition$3:388 com.android.server.wm.WindowOrganizerController.$r8$lambda$PHnU0rj5Bcvaq0dL-Wi7kOJt8bo:0 com.android.server.wm.WindowOrganizerController$$ExternalSyntheticLambda5.onCollectStarted:0 
+06-04 12:45:28.681   638  2365 V WindowManager: continueTransitionReady deferReadyDepth=0 stack=com.android.server.wm.WindowOrganizerController.applyTransaction:864 com.android.server.wm.WindowOrganizerController.applyTransaction:651 com.android.server.wm.WindowOrganizerController.lambda$startTransition$3:388 com.android.server.wm.WindowOrganizerController.$r8$lambda$PHnU0rj5Bcvaq0dL-Wi7kOJt8bo:0 com.android.server.wm.WindowOrganizerController$$ExternalSyntheticLambda5.onCollectStarted:0 
+06-04 12:45:28.682   638   657 V WindowManager: Sent Transition (#108) createdAt=06-04 12:45:28.681
+06-04 12:45:28.682   638   657 V WindowManager:     startWCT=WindowContainerTransaction { changes= {RemoteToken{99eda00 DefaultTaskDisplayArea@198993308}={isTaskMoveAllowed:false,}} hops= [] flags= 0 errorCallbackToken=null taskFragmentOrganizer=null }
+06-04 12:45:28.682   638   657 V WindowManager:     info={id=108 t=CHANGE f=0x0 trk=1 r=[] c=[]}
+06-04 12:45:28.682 10568 10568 I SoLoader: Preparing SO source: DirectorySoSource[root = /system/lib64 flags = 2]
+06-04 12:45:28.682 10568 10568 I SoLoader: Preparing SO source: DirectApkSoSource[root = [/data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!/lib/arm64-v8a]]
+06-04 12:45:28.683 10568 10568 I SoLoader: Preparing SO source: ApplicationSoSource[DirectorySoSource[root = /data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/lib/arm64 flags = 0]]
+06-04 12:45:28.683 10568 10568 I SoLoader: init finish: 4 SO sources prepared
+06-04 12:45:28.683 10568 10568 W SoLoader: SoLoader initialized: 8
+06-04 12:45:28.684  1083  1397 V WindowManagerShell: onTransitionReady(transaction=2740189141836)
+06-04 12:45:28.684  1083  1177 V WindowManagerShell: onTransitionReady (#108) android.os.BinderProxy@f5d3641: {id=108 t=CHANGE f=0x0 trk=1 r=[] c=[]}
+06-04 12:45:28.684  1083  1177 V WindowManagerShell: No transition roots in (#108) android.os.BinderProxy@f5d3641@1 so abort
+06-04 12:45:28.684  1083  1177 V WindowManagerShell: Transition was merged: (#108) android.os.BinderProxy@f5d3641@1 into (#107) android.os.BinderProxy@83c40f3@1
+06-04 12:45:28.684  7930  7930 I PkDeviceHelper: PkDeviceHelper.refreshDevices():87 refreshing devices
+06-04 12:45:28.684  7930  7930 I PkDeviceHelper: PkDeviceHelper.addDevice():125 device qwerty2 added
+06-04 12:45:28.685 10568 10568 D nativeloader: Load /data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!/lib/arm64-v8a/libc++_shared.so using class loader ns clns-9 (caller=/data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!classes2.dex): ok
+06-04 12:45:28.686 10568 10568 D nativeloader: Load /data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!/lib/arm64-v8a/libjsi.so using class loader ns clns-9 (caller=/data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!classes2.dex): ok
+06-04 12:45:28.687 10568 10568 D nativeloader: Load /data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!/lib/arm64-v8a/libfbjni.so using class loader ns clns-9 (caller=/data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!classes2.dex): ok
+06-04 12:45:28.688 10568 10568 D nativeloader: Load /data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!/lib/arm64-v8a/libreactnative.so using class loader ns clns-9 (caller=/data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!classes2.dex): ok
+06-04 12:45:28.688 10568 10568 D jni_lib_merge: Entering merged library JNI_OnLoad.
+06-04 12:45:28.688 10568 10568 D jni_lib_merge: Preparing 12 pre-merged libs (including stub)
+06-04 12:45:28.688 10568 10568 D jni_lib_merge: Preparing to register libfabricjni_so.  onload_func: 0x73d1e38deedc
+06-04 12:45:28.688 10568 10568 D jni_lib_merge: Preparing to register libreact_devsupportjni_so.  onload_func: 0x73d1e39aff40
+06-04 12:45:28.688 10568 10568 D jni_lib_merge: Preparing to register libreact_featureflagsjni_so.  onload_func: 0x73d1e39c29f8
+06-04 12:45:28.688 10568 10568 D jni_lib_merge: Preparing to register libreact_newarchdefaults_so.  onload_func: 0x73d1e39e7e30
+06-04 12:45:28.688 10568 10568 D jni_lib_merge: Preparing to register libreactnativeblob_so.  onload_func: 0x73d1e3a7a5b0
+06-04 12:45:28.688 10568 10568 D jni_lib_merge: Preparing to register libreactnativejni_so.  onload_func: 0x73d1e3a94b24
+06-04 12:45:28.688 10568 10568 D jni_lib_merge: Preparing to register libreactnativejni_common_so.  onload_func: 0x73d1e3a9b458
+06-04 12:45:28.688 10568 10568 D jni_lib_merge: Preparing to register librninstance_so.  onload_func: 0x73d1e3ab7070
+06-04 12:45:28.688 10568 10568 D jni_lib_merge: Preparing to register libturbomodulejsijni_so.  onload_func: 0x73d1e3b4f1a4
+06-04 12:45:28.688 10568 10568 D jni_lib_merge: Preparing to register libuimanagerjni_so.  onload_func: 0x73d1e3b567e0
+06-04 12:45:28.688 10568 10568 D jni_lib_merge: Preparing to register libyoga_so.  onload_func: 0x73d1e3b5dda4
+06-04 12:45:28.688 10568 10568 D jni_lib_merge: About to register 11 actual methods.
+06-04 12:45:28.689 10568 10568 D nativeloader: Load /data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!/lib/arm64-v8a/libreact_codegen_rnscreens.so using class loader ns clns-9 (caller=/data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!classes2.dex): ok
+06-04 12:45:28.689 10568 10568 D jni_lib_merge: Entering merged library JNI_OnLoad.
+06-04 12:45:28.689 10568 10568 D jni_lib_merge: Preparing 12 pre-merged libs (including stub)
+06-04 12:45:28.689 10568 10568 D jni_lib_merge: Preparing to register libfabricjni_so.  onload_func: 0x73d1e38deedc
+06-04 12:45:28.689 10568 10568 D jni_lib_merge: Preparing to register libreact_devsupportjni_so.  onload_func: 0x73d1e39aff40
+06-04 12:45:28.689 10568 10568 D jni_lib_merge: Preparing to register libreact_featureflagsjni_so.  onload_func: 0x73d1e39c29f8
+06-04 12:45:28.689 10568 10568 D jni_lib_merge: Preparing to register libreact_newarchdefaults_so.  onload_func: 0x73d1e39e7e30
+06-04 12:45:28.689 10568 10568 D jni_lib_merge: Preparing to register libreactnativeblob_so.  onload_func: 0x73d1e3a7a5b0
+06-04 12:45:28.689 10568 10568 D jni_lib_merge: Preparing to register libreactnativejni_so.  onload_func: 0x73d1e3a94b24
+06-04 12:45:28.689 10568 10568 D jni_lib_merge: Preparing to register libreactnativejni_common_so.  onload_func: 0x73d1e3a9b458
+06-04 12:45:28.689 10568 10568 D jni_lib_merge: Preparing to register librninstance_so.  onload_func: 0x73d1e3ab7070
+06-04 12:45:28.689 10568 10568 D jni_lib_merge: Preparing to register libturbomodulejsijni_so.  onload_func: 0x73d1e3b4f1a4
+06-04 12:45:28.689 10568 10568 D jni_lib_merge: Preparing to register libuimanagerjni_so.  onload_func: 0x73d1e3b567e0
+06-04 12:45:28.689 10568 10568 D jni_lib_merge: Preparing to register libyoga_so.  onload_func: 0x73d1e3b5dda4
+06-04 12:45:28.689 10568 10568 D jni_lib_merge: About to register 11 actual methods.
+06-04 12:45:28.690 10568 10568 D nativeloader: Load /data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!/lib/arm64-v8a/libreact_codegen_rnsvg.so using class loader ns clns-9 (caller=/data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!classes2.dex): ok
+06-04 12:45:28.690 10568 10568 D jni_lib_merge: Entering merged library JNI_OnLoad.
+06-04 12:45:28.690 10568 10568 D jni_lib_merge: Preparing 12 pre-merged libs (including stub)
+06-04 12:45:28.690 10568 10568 D jni_lib_merge: Preparing to register libfabricjni_so.  onload_func: 0x73d1e38deedc
+06-04 12:45:28.690 10568 10568 D jni_lib_merge: Preparing to register libreact_devsupportjni_so.  onload_func: 0x73d1e39aff40
+06-04 12:45:28.690 10568 10568 D jni_lib_merge: Preparing to register libreact_featureflagsjni_so.  onload_func: 0x73d1e39c29f8
+06-04 12:45:28.690 10568 10568 D jni_lib_merge: Preparing to register libreact_newarchdefaults_so.  onload_func: 0x73d1e39e7e30
+06-04 12:45:28.690 10568 10568 D jni_lib_merge: Preparing to register libreactnativeblob_so.  onload_func: 0x73d1e3a7a5b0
+06-04 12:45:28.690 10568 10568 D jni_lib_merge: Preparing to register libreactnativejni_so.  onload_func: 0x73d1e3a94b24
+06-04 12:45:28.690 10568 10568 D jni_lib_merge: Preparing to register libreactnativejni_common_so.  onload_func: 0x73d1e3a9b458
+06-04 12:45:28.690 10568 10568 D jni_lib_merge: Preparing to register librninstance_so.  onload_func: 0x73d1e3ab7070
+06-04 12:45:28.690 10568 10568 D jni_lib_merge: Preparing to register libturbomodulejsijni_so.  onload_func: 0x73d1e3b4f1a4
+06-04 12:45:28.690 10568 10568 D jni_lib_merge: Preparing to register libuimanagerjni_so.  onload_func: 0x73d1e3b567e0
+06-04 12:45:28.690 10568 10568 D jni_lib_merge: Preparing to register libyoga_so.  onload_func: 0x73d1e3b5dda4
+06-04 12:45:28.690 10568 10568 D jni_lib_merge: About to register 11 actual methods.
+06-04 12:45:28.691 10568 10568 D nativeloader: Load /data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!/lib/arm64-v8a/libreact_codegen_safeareacontext.so using class loader ns clns-9 (caller=/data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!classes2.dex): ok
+06-04 12:45:28.691 10568 10568 D nativeloader: Load /data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!/lib/arm64-v8a/libappmodules.so using class loader ns clns-9 (caller=/data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!classes2.dex): ok
+06-04 12:45:28.695  1083  1083 D NavigationModeController: getCurrentUserContext: contextUser=0 currentUser=0
+06-04 12:45:28.695 10568 10582 I DisplayManager: Choreographer implicitly registered for the refresh rate.
+06-04 12:45:28.697   489   539 I libbinder.BpBinder: onLastStrongRef automatically unlinking death recipients for binder (0xb40071abfe054500) with descriptor: '(not cached)'
+06-04 12:45:28.698 10568 10568 D DesktopExperienceFlags: Toggle override initialized to: false
+06-04 12:45:28.698 10568 10568 D AppCompatDelegate: Checking for metadata for AppLocalesMetadataHolderService : Service not found
+06-04 12:45:28.703 10568 10568 D CompatChangeReporter: Compat change id reported: 377864165; UID 10228; state: ENABLED
+06-04 12:45:28.708 10568 10568 W unknown:BridgelessReact: ReactHost{0}.startSurface(surfaceId = 0): Schedule
+06-04 12:45:28.708 10568 10568 W unknown:BridgelessReact: ReactHost{0}.attachSurface(surfaceId = 0)
+06-04 12:45:28.708 10568 10587 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask()
+06-04 12:45:28.708 10568 10587 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): Start
+06-04 12:45:28.708 10568 10587 W unknown:BridgelessReact: ReactHost{0}.getJSBundleLoader()
+06-04 12:45:28.708 10568 10587 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactContext(): Creating BridgelessReactContext
+06-04 12:45:28.708 10568 10587 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): Creating ReactInstance
+06-04 12:45:28.710 10568 10568 W WindowOnBackDispatcher: OnBackInvokedCallback is not enabled for the application.
+06-04 12:45:28.710 10568 10568 W WindowOnBackDispatcher: Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+06-04 12:45:28.711 10568 10568 W unknown:BridgelessReact: ReactHost{0}.onHostResume(activity)
+06-04 12:45:28.711 10568 10568 W unknown:BridgelessReact: ReactContext.onHostResume()
+06-04 12:45:28.712 10568 10568 W HWUI    : Unknown dataspace 0
+06-04 12:45:28.714   489   572 W skia    : AGTM parsing failed flags.readFromStream(s) at 159
+06-04 12:45:28.715   489   572 W skia    : AGTM parsing failed flags.readFromStream(s) at 159
+06-04 12:45:28.715 10568 10587 D nativeloader: Load /data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!/lib/arm64-v8a/libhermes.so using class loader ns clns-9 (caller=/data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!classes2.dex): ok
+06-04 12:45:28.714  1083  1177 V RecentTasksController: Notify recent tasks changed
+06-04 12:45:28.715 10568 10587 D nativeloader: Load /data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!/lib/arm64-v8a/libhermestooling.so using class loader ns clns-9 (caller=/data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!classes2.dex): ok
+06-04 12:45:28.715 10568 10587 D jni_lib_merge: Entering merged library JNI_OnLoad.
+06-04 12:45:28.715 10568 10587 D jni_lib_merge: Preparing 4 pre-merged libs (including stub)
+06-04 12:45:28.715 10568 10587 D jni_lib_merge: Preparing to register libhermes_executor_so.  onload_func: 0x73d2b1bd74b0
+06-04 12:45:28.715 10568 10587 D jni_lib_merge: Preparing to register libhermesinstancejni_so.  onload_func: 0x73d2b1bde900
+06-04 12:45:28.715 10568 10587 D jni_lib_merge: Preparing to register libjsijniprofiler_so.  onload_func: 0x73d2b1bdf0ec
+06-04 12:45:28.715 10568 10587 D jni_lib_merge: About to register 3 actual methods.
+06-04 12:45:28.716  1398  1398 D RecentTasksList: invalidateLoadedTasks - previous requestLoadId: -1
+06-04 12:45:28.716  1083  1177 V RecentTasksController: generateList(getRecentTasks)
+06-04 12:45:28.716  1083  1177 V RecentTasksController: initializeDesksMap - allDeskIds: []
+06-04 12:45:28.717  1083  1177 V RecentTasksController: Task 33 is not an active desktop task
+06-04 12:45:28.717  1083  1177 V RecentTasksController: Added fullscreen task: 33
+06-04 12:45:28.717  1083  1177 V RecentTasksController: Task 24 is not an active desktop task
+06-04 12:45:28.717  1083  1177 V RecentTasksController: Added fullscreen task: 24
+06-04 12:45:28.717  1083  1177 V RecentTasksController: Task 19 is not an active desktop task
+06-04 12:45:28.717  1083  1177 V RecentTasksController: Added fullscreen task: 19
+06-04 12:45:28.717  1083  1177 V RecentTasksController: generateList - complete
+06-04 12:45:28.717  1398  1435 D PreloadThumbnailUseCase: Preloading thumbnails for task ids: [[id=19 windowingMode=1 user=0 lastActiveTime=289340] null, [id=24 windowingMode=1 user=0 lastActiveTime=502989] null, [id=33 windowingMode=1 user=0 lastActiveTime=2851302] null]
+06-04 12:45:28.717 10568 10590 W libc    : Access denied finding property "vendor.mesa.virtgpu.kumquat"
+06-04 12:45:28.718 10568 10582 I GFXSTREAM: [eglDisplay.cpp(297)] Opening libGLESv1_CM_emulation.so
+06-04 12:45:28.718 10568 10582 I GFXSTREAM: [eglDisplay.cpp(297)] Opening libGLESv2_emulation.so
+06-04 12:45:28.718 10568 10582 W libc    : Access denied finding property "vendor.mesa.virtgpu.kumquat"
+06-04 12:45:28.720 10568 10582 W HWUI    : Failed to choose config with EGL_SWAP_BEHAVIOR_PRESERVED, retrying without...
+06-04 12:45:28.720 10568 10582 W HWUI    : Failed to initialize 101010-2 format, error = EGL_SUCCESS
+06-04 12:45:28.725   638  1154 W InputChannel-JNI: Channel already disposed.
+06-04 12:45:28.726 10568 10587 I ExpoModulesCore: ✅ AppContext was initialized
+06-04 12:45:28.729 10568 10568 D VRI[MainActivity]: WindowInsets changed: 1080x2400 statusBars:[0,63,0,0] navigationBars:[0,0,0,63] mandatorySystemGestures:[0,63,0,84] 
+06-04 12:45:28.729 10568 10568 D WindowOnBackDispatcher: setTopOnBackInvokedCallback (unwrapped): android.view.ViewRootImpl$$ExternalSyntheticLambda14@a626674
+06-04 12:45:28.729   638  2365 D CoreBackPreview: Window{f519833 u0 com.harshgupta1708.gymtracker/com.harshgupta1708.gymtracker.MainActivity}: Setting back callback OnBackInvokedCallbackInfo{mCallback=android.window.IOnBackInvokedCallback$Stub$Proxy@86137ee, mPriority=0, mIsAnimationCallback=false, mOverrideBehavior=0}
+06-04 12:45:28.730   638  2365 D WindowManager: setClientSurface Surface(name=VRI-com.harshgupta1708.gymtracker/com.harshgupta1708.gymtracker.MainActivity#909)/@0x83848f for f519833 com.harshgupta1708.gymtracker/com.harshgupta1708.gymtracker.MainActivity
+06-04 12:45:28.731 10568 10568 I Surface : Creating surface for consumer unnamed-10568-0 with slotExpansion=1 for 64 slots
+06-04 12:45:28.731 10568 10568 I Surface : Creating surface for consumer VRI[MainActivity]#0(BLAST Consumer)0 with slotExpansion=1 for 64 slots
+06-04 12:45:28.736 10568 10587 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): Loading JS Bundle
+06-04 12:45:28.738 10568 10587 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): Calling DevSupportManagerBase.onNewReactContextCreated(reactContext)
+06-04 12:45:28.739 10568 10587 W unknown:BridgelessReact: ReactHost{0}.startSurface(surfaceId = 0): Execute
+06-04 12:45:28.740 10568 10588 D nativeloader: Load /data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!/lib/arm64-v8a/libexpo-modules-core.so using class loader ns clns-9 (caller=/data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!classes2.dex): ok
+06-04 12:45:28.742 10568 10568 W unknown:BridgelessReact: ReactContext.onHostResume()
+06-04 12:45:28.742 10568 10568 W unknown:BridgelessReact: ReactHost{0}.getOrCreateReactInstanceTask(): Executing ReactInstanceEventListeners
+06-04 12:45:28.743 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.th3rdwave.safeareacontext.SafeAreaProviderManager
+06-04 12:45:28.744 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.uimanager.LayoutShadowNode
+06-04 12:45:28.744 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.SearchBarManager
+06-04 12:45:28.745 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenFooterManager
+06-04 12:45:28.745 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.gamma.tabs.TabScreenViewManager
+06-04 12:45:28.745 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class expo.modules.kotlin.views.GroupViewManagerWrapper
+06-04 12:45:28.746 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenContainerViewManager
+06-04 12:45:28.746 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.gamma.tabs.TabsHostViewManager
+06-04 12:45:28.746 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ModalScreenViewManager
+06-04 12:45:28.746 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenStackHeaderConfigViewManager
+06-04 12:45:28.746 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenContentWrapperManager
+06-04 12:45:28.747 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.th3rdwave.safeareacontext.SafeAreaViewManager
+06-04 12:45:28.747 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.th3rdwave.safeareacontext.SafeAreaViewShadowNode
+06-04 12:45:28.747 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenViewManager
+06-04 12:45:28.747 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenStackHeaderSubviewManager
+06-04 12:45:28.747 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.rnscreens.ScreenStackViewManager
+06-04 12:45:28.750 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$DefsViewManager
+06-04 12:45:28.750 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.VirtualViewManager$RenderableShadowNode
+06-04 12:45:28.751 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FeMergeManager
+06-04 12:45:28.751 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.safeareaview.ReactSafeAreaViewManager
+06-04 12:45:28.751 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.safeareaview.ReactSafeAreaViewShadowNode
+06-04 12:45:28.752 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$LinearGradientManager
+06-04 12:45:28.752 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FeGaussianBlurManager
+06-04 12:45:28.752 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.progressbar.ReactProgressBarViewManager
+06-04 12:45:28.753 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.progressbar.ProgressBarShadowNode
+06-04 12:45:28.753 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.scroll.ReactHorizontalScrollViewManager
+06-04 12:45:28.753 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.text.ReactTextViewManager
+06-04 12:45:28.754 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.text.ReactTextShadowNode
+06-04 12:45:28.754 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FeColorMatrixManager
+06-04 12:45:28.754 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.scroll.ReactHorizontalScrollContainerViewManager
+06-04 12:45:28.755 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$ClipPathViewManager
+06-04 12:45:28.755 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$SymbolManager
+06-04 12:45:28.756 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$PatternManager
+06-04 12:45:28.756 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FeBlendManager
+06-04 12:45:28.756 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.view.ReactViewManager
+06-04 12:45:28.757 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.SvgViewManager
+06-04 12:45:28.757 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.switchview.ReactSwitchManager
+06-04 12:45:28.758 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.switchview.ReactSwitchShadowNode
+06-04 12:45:28.758 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$UseViewManager
+06-04 12:45:28.758 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$CircleViewManager
+06-04 12:45:28.759 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$TSpanViewManager
+06-04 12:45:28.759 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FilterManager
+06-04 12:45:28.760 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$MarkerManager
+06-04 12:45:28.762 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.gesturehandler.react.RNGestureHandlerButtonViewManager
+06-04 12:45:28.763 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.modal.ReactModalHostManager
+06-04 12:45:28.763 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$ForeignObjectManager
+06-04 12:45:28.764 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$EllipseViewManager
+06-04 12:45:28.764 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$LineViewManager
+06-04 12:45:28.765 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.text.frescosupport.FrescoBasedReactTextInlineImageViewManager
+06-04 12:45:28.765 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.text.frescosupport.FrescoBasedReactTextInlineImageShadowNode
+06-04 12:45:28.765 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FeFloodManager
+06-04 12:45:28.766 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$GroupViewManager
+06-04 12:45:28.766 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$TextViewManager
+06-04 12:45:28.766 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$ImageViewManager
+06-04 12:45:28.767 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FeCompositeManager
+06-04 12:45:28.767 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.image.ReactImageManager
+06-04 12:45:28.767 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$RadialGradientManager
+06-04 12:45:28.768 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$MaskManager
+06-04 12:45:28.768 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.unimplementedview.ReactUnimplementedViewManager
+06-04 12:45:28.769 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$RectViewManager
+06-04 12:45:28.769 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$TextPathViewManager
+06-04 12:45:28.769 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.scroll.ReactScrollViewManager
+06-04 12:45:28.770 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$FeOffsetManager
+06-04 12:45:28.770 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.horcrux.svg.RenderableViewManager$PathViewManager
+06-04 12:45:28.771 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.drawer.ReactDrawerLayoutManager
+06-04 12:45:28.771 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.text.ReactVirtualTextViewManager
+06-04 12:45:28.771 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.text.ReactVirtualTextShadowNode
+06-04 12:45:28.771 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.swiperefresh.SwipeRefreshLayoutManager
+06-04 12:45:28.772 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.text.ReactRawTextManager
+06-04 12:45:28.772 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.text.ReactRawTextShadowNode
+06-04 12:45:28.772 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.textinput.ReactTextInputManager
+06-04 12:45:28.773 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.facebook.react.views.textinput.ReactTextInputShadowNode
+06-04 12:45:28.773 10568 10588 W unknown:ViewManagerPropertyUpdater: Could not find generated setter for class com.swmansion.gesturehandler.react.RNGestureHandlerRootViewManager
+06-04 12:45:28.774 10568 10588 W BridgelessReactContext: [WARNING] Bridgeless doesn't support CatalystInstance. Accessing an API that's not part of the new architecture is not encouraged usage.
+06-04 12:45:28.775 10568 10588 I ExpoModulesCore: ✅ JSI interop was installed
+06-04 12:45:28.775 10568 10588 I ExpoModulesCore: ✅ Constants were exported
+06-04 12:45:28.781 10568 10588 D nativeloader: Load /data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!/lib/arm64-v8a/librnscreens.so using class loader ns clns-9 (caller=/data/app/~~hEqKB9ejhtW4yy-MypAY3A==/com.harshgupta1708.gymtracker-MbePqUHj8VOjkJ7B-m3AaA==/base.apk!classes2.dex): ok
+06-04 12:45:28.789 10568 10588 I ReactNativeJS: Running "main"
+06-04 12:45:28.815   489   572 W skia    : AGTM parsing failed flags.readFromStream(s) at 159
+06-04 12:45:28.815   489   572 W skia    : AGTM parsing failed flags.readFromStream(s) at 159
+06-04 12:45:28.818   638   657 I ActivityTaskManager: Displayed com.harshgupta1708.gymtracker/.MainActivity for user 0: +213ms
+06-04 12:45:28.819   638   660 W ProcessStats: Tracking association SourceState{f72c9b4 com.google.android.apps.nexuslauncher/10192 BTop #10781} whose proc state 2 is better than process ProcessState{ba4486e com.google.android.apps.wellbeing/10159 pkg=com.google.android.apps.wellbeing} proc state 14 (11 skipped)
+06-04 12:45:28.839 10568 10588 I HWUI    : Using FreeType backend (prop=Auto)
+06-04 12:45:28.855   638   757 I ImeTracker: com.harshgupta1708.gymtracker:25e3067d: onRequestHide at ORIGIN_SERVER reason HIDE_UNSPECIFIED_WINDOW fromUser false userId 0 displayId 0
+06-04 12:45:28.856 10568 10568 D InsetsController: hide(ime())
+06-04 12:45:28.856 10568 10568 I ImeTracker: com.harshgupta1708.gymtracker:25e3067d: onCancelled at PHASE_CLIENT_ALREADY_HIDDEN
+06-04 12:45:28.856   638  1154 W InputChannel-JNI: Channel already disposed.
+06-04 12:45:28.857  7930  7930 I GoogleInputMethodService: GoogleInputMethodService.onFinishInput():2159 
+06-04 12:45:28.857   638  2277 I ImeTracker: system_server:a4e21181: onRequestHide at ORIGIN_SERVER reason IME_REQUESTED_CHANGED_LISTENER fromUser false displayId 0
+06-04 12:45:28.857  7930  7930 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatus():103 repeatCheckTimes = 0, locked = false
+06-04 12:45:28.857  7930  7930 I GoogleInputMethodService: GoogleInputMethodService.onStartInput():1434 onStartInput(EditorInfo{EditorInfo{packageName=com.harshgupta1708.gymtracker, inputType=0, inputTypeString=NULL, enableLearning=false, autoCorrection=false, autoComplete=false, imeOptions=0, privateImeOptions=null, actionName=UNSPECIFIED, actionLabel=null, initialSelStart=-1, initialSelEnd=-1, initialCapsMode=0, label=null, fieldId=0, fieldName=null, extras=null, hintText=null, hintLocales=[]}}, false)
+06-04 12:45:28.857  7930  7930 W AndroidIME: LatinIMEBase.updateInputViewCoverNavigation():317 Null input view, cannot update padding!
+06-04 12:45:28.857   638   660 I ImeTracker: system_server:a4e21181: onCancelled at PHASE_SERVER_SHOULD_HIDE
+06-04 12:45:28.857  7930  7930 I Module  : DeviceLockedStatusModuleProvider$Module.updateDeviceLockedStatus():103 repeatCheckTimes = 1, locked = false
+06-04 12:45:28.858   638  1154 W PackageConfigPersister: App-specific configuration not found for packageName: com.harshgupta1708.gymtracker and userId: 0
+06-04 12:45:28.886  2482  2750 W AiAiEcho: LyftNotificationParser Ridesharing ETA not enabled
+06-04 12:45:28.886  2482  2750 I AiAiEcho: SmartspaceNotificationPredictor no parser can handle this notification or notification is invalid
+06-04 12:45:28.916   489   572 W skia    : AGTM parsing failed flags.readFromStream(s) at 159
+06-04 12:45:28.916   489   572 W skia    : AGTM parsing failed flags.readFromStream(s) at 159
+06-04 12:45:28.942  1083  1177 V WindowManagerShell: Transition animation finished (aborted=false), notifying core (#107) android.os.BinderProxy@83c40f3@1
+06-04 12:45:28.944   638   657 V WindowManager: Finish Transition (#107): created at 06-04 12:45:28.608 collect-started=0.007ms request-sent=3.675ms started=7.686ms ready=26.856ms sent=27.361ms commit=7.045ms finished=335.771ms
+06-04 12:45:28.944  1398  1398 D VRI[NexusLauncherActivity]: visibilityChanged oldVisibility=true newVisibility=false
+06-04 12:45:28.944  1083  1386 D WallpaperService: onVisibilityChanged(false): com.android.systemui.wallpapers.ImageWallpaper$CanvasEngine@74ea0ff
+06-04 12:45:28.945   638   657 V WindowManager: Finish Transition (#108): created at 06-04 12:45:28.681 collect-started=0.015ms started=0.022ms ready=0.184ms sent=0.521ms finished=263.745ms
+06-04 12:45:28.946  1083  1177 V WindowManagerShell: Track 1 became idle
+06-04 12:45:28.946  1083  1177 V WindowManagerShell: All active transition animations finished
+06-04 12:45:28.948   546   599 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:28.948   546   599 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:28.960  1398  1398 D SmartspaceInteractor: notifySmartspaceEvent: SmartspaceTargetEvent{mSmartspaceTarget=null, mSmartspaceActionId='null', mEventType=7}
+06-04 12:45:28.963  2482  2671 I AiAiEcho: AmbientDataPredictorImpl No tracked ambient data found for ID: null; for event type: 7, skipping event processing.
+06-04 12:45:28.963  1398  1398 D BaseActivity: Launcher flags updated: [] -[state_started]
+06-04 12:45:28.963  1398  1398 D BaseDepthController: setSurface:
+06-04 12:45:28.963  1398  1398 D BaseDepthController: 	mWaitingOnSurfaceValidity: false
+06-04 12:45:28.963  1398  1398 D BaseDepthController: 	mBaseSurface: null
+06-04 12:45:28.963  1398  1398 D BaseDepthController: mSurface is null and mCurrentBlur is: 0
+06-04 12:45:28.963  1398  1398 D LauncherStateManager: StateManager.goToState: fromState: Normal, toState: Normal, partial trace:
+06-04 12:45:28.963  1398  1398 D LauncherStateManager: 	at com.android.launcher3.statemanager.StateManager.moveToRestState(go/retraceme 4b96215a9d9b4c1494121442fbf9d6e89857c91e1d76ddcc689701971259418a:26)
+06-04 12:45:28.963  1398  1398 D LauncherStateManager: 	at com.android.launcher3.statemanager.StateManager.moveToRestState(go/retraceme 4b96215a9d9b4c1494121442fbf9d6e89857c91e1d76ddcc689701971259418a:35)
+06-04 12:45:28.963  1398  1398 D LauncherStateManager: 	at com.android.launcher3.statemanager.StatefulActivity.onStop(go/retraceme 4b96215a9d9b4c1494121442fbf9d6e89857c91e1d76ddcc689701971259418a:31)
+06-04 12:45:28.963  1398  1398 D LauncherStateManager: StateManager.onRepeatStateSetAborted: state: Normal
+06-04 12:45:28.963  1398  1398 D KeyboardStateManager: hideKeyboard
+06-04 12:45:28.963  1398  1398 D KeyboardStateManager: isImeShown: false
+06-04 12:45:28.963  1398  1398 D StatsLog: LAUNCHER_ONSTOP
+06-04 12:45:28.964  1398  1398 D StatsLog: LAUNCHER_GOOGLE_SEARCH_RESTORE_LIST_SIZE_AFTER_ACTIVITY_RESTART
+06-04 12:45:28.995   546   599 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:28.996   546   599 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:29.012  1083  1229 D WindowOnBackDispatcher: setTopOnBackInvokedCallback (unwrapped): null
+06-04 12:45:29.012   638  1154 D CoreBackPreview: Window{ff828d u0 Splash Screen com.harshgupta1708.gymtracker}: Setting back callback null
+06-04 12:45:29.016   489   572 W skia    : AGTM parsing failed flags.readFromStream(s) at 159
+06-04 12:45:29.034  1083  1097 W System  : A resource failed to call release. 
+06-04 12:45:29.034  1083  1097 W System  : A resource failed to call release. 
+06-04 12:45:29.034  1083  1097 W System  : A resource failed to call release. 
+06-04 12:45:29.034  1083  1097 W System  : A resource failed to call release. 
+06-04 12:45:29.034  1083  1097 W System  : A resource failed to call release. 
+06-04 12:45:29.034  1083  1097 W System  : A resource failed to call release. 
+06-04 12:45:29.117   489   572 W skia    : AGTM parsing failed flags.readFromStream(s) at 159
+06-04 12:45:29.214   546   599 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:29.214   546   599 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:29.214  7630  7688 I FontLog : (REDACTED) Received query %s, URI %s
+06-04 12:45:29.214  7630  7688 I FontLog : (REDACTED) Query [%s] resolved to %s
+06-04 12:45:29.215  7630  7688 I FontLog : (REDACTED) Fetch %s end status %s
+06-04 12:45:29.217  7630  7688 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+06-04 12:45:29.218   489   572 W skia    : AGTM parsing failed flags.readFromStream(s) at 159
+06-04 12:45:29.220  7630  7688 I FontLog : (REDACTED) Pulling font file for id = %d, cache size = %d
+06-04 12:45:29.319   489   572 W skia    : AGTM parsing failed flags.readFromStream(s) at 159
+06-04 12:45:29.420   489   572 W skia    : AGTM parsing failed flags.readFromStream(s) at 159
+06-04 12:45:29.529   489   572 W skia    : AGTM parsing failed flags.readFromStream(s) at 159
+06-04 12:45:29.630   489   572 W skia    : AGTM parsing failed flags.readFromStream(s) at 159
+06-04 12:45:30.607   638  1014 I AdbWifiNetworkMonitor: Wi-Fi network available
+06-04 12:45:30.607   638  1014 I AdbWifiNetworkMonitor: Received the same Wi-Fi SSID. Ignoring.
+06-04 12:45:30.608   638   985 I HalDevMgr: bestIfaceCreationProposal is null, requestIface=STA, existingIface=[name=wlan0 type=STA]
+06-04 12:45:30.612   638   991 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:30.612   638   991 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:30.612   638   991 W libbinder.IPCThreadState: Sending oneway calls to frozen process.
+06-04 12:45:30.615  7630  7688 I NullBinder: NullBinder for android.net.action.RECOMMEND_NETWORKS triggering remote TransactionTooLargeException due to Service without Chimera impl, calling uid: 1000, calling pid: 0
+06-04 12:45:30.615  7630  7688 W libbinder.Binder: Large reply transaction of 1056768 bytes, interface descriptor , function: UNKNOWN_FUNCTION_NAME, code: 1, flags: 17
+06-04 12:45:30.617   638   991 D ConnectivityService: NetReassign [no changes] [c 0] [a 1] [i 0]
+06-04 12:45:30.618  7630  7708 I NearbyMediums: Wifi changed new SSID: "AndroidWifi"
+06-04 12:45:30.618  7630  7708 I NearbyMediums: WifiLanConnectivityInfo is not changed, skip notify.
+06-04 12:45:31.068   638  3487 E TaskPersister: File error accessing recents directory (directory doesn't exist?).
+06-04 12:45:31.584  1237  1373 D SatelliteController: isInCarrierRoamingNbIotNtn: satellite is disabled
+06-04 12:45:31.584  1237  1373 D SatelliteController: getCarrierRoamingNtnConnectType: Checking connect type from PLMN config for subId: 1
+06-04 12:45:31.584  1237  1373 D TelephonyConfigUpdateInstallReceiver: getConfigParser: domain=satellite
+06-04 12:45:31.584  1237  1373 V SatelliteController: satelliteConfigParser is not ready
+06-04 12:45:31.584  1237  1373 D SatelliteController: isSatelliteAttachSupportedViaConfigupdater: return null (satelliteConfig is null)
+06-04 12:45:31.585  1237  1373 D SatelliteController: getSatellitePerPlmnConfiguration: invalid subId or not supported via carrier.
+06-04 12:45:31.585  1237  1373 D SatelliteController: getCarrierRoamingNtnConnectType: config: null
+06-04 12:45:31.585  1237  1373 D TelephonyConfigUpdateInstallReceiver: getConfigParser: domain=satellite
+06-04 12:45:31.585  1237  1373 V SatelliteController: satelliteConfigParser is not ready
+06-04 12:45:31.585  1237  1373 D SatelliteController: getCarrierRoamingNtnConnectTypeViaConfigUpdater: return null (satelliteConfig is null)
+06-04 12:45:31.585  1237  1373 D SatelliteController: getCarrierRoamingNtnConnectType: Falling back to global carrier config connect type: 0
+06-04 12:45:31.585  1237  1373 D TelephonyConfigUpdateInstallReceiver: getConfigParser: domain=satellite
+06-04 12:45:31.585  1237  1373 V SatelliteController: satelliteConfigParser is not ready
+06-04 12:45:31.585  1237  1373 D SatelliteController: isSatelliteAttachSupportedViaConfigupdater: return null (satelliteConfig is null)
+06-04 12:45:31.585  1237  1373 D SatelliteController: getCarrierRoamingNtnConnectType: Checking connect type from PLMN config for subId: 1
+06-04 12:45:31.585  1237  1373 D TelephonyConfigUpdateInstallReceiver: getConfigParser: domain=satellite
+06-04 12:45:31.585  1237  1373 V SatelliteController: satelliteConfigParser is not ready
+06-04 12:45:31.585  1237  1373 D SatelliteController: isSatelliteAttachSupportedViaConfigupdater: return null (satelliteConfig is null)
+06-04 12:45:31.585  1237  1373 D SatelliteController: getSatellitePerPlmnConfiguration: invalid subId or not supported via carrier.
+06-04 12:45:31.585  1237  1373 D SatelliteController: getCarrierRoamingNtnConnectType: config: null
+06-04 12:45:31.585  1237  1373 D TelephonyConfigUpdateInstallReceiver: getConfigParser: domain=satellite
+06-04 12:45:31.585  1237  1373 V SatelliteController: satelliteConfigParser is not ready
+06-04 12:45:31.585  1237  1373 D SatelliteController: getCarrierRoamingNtnConnectTypeViaConfigUpdater: return null (satelliteConfig is null)
+06-04 12:45:31.585  1237  1373 D SatelliteController: getCarrierRoamingNtnConnectType: Falling back to global carrier config connect type: 0
+06-04 12:45:31.585  1237  1373 D TelephonyConfigUpdateInstallReceiver: getConfigParser: domain=satellite
+06-04 12:45:31.585  1237  1373 V SatelliteController: satelliteConfigParser is not ready
+06-04 12:45:31.585  1237  1373 D SatelliteController: isSatelliteAttachSupportedViaConfigupdater: return null (satelliteConfig is null)
+06-04 12:45:31.614   489   572 W skia    : AGTM parsing failed flags.readFromStream(s) at 159
+06-04 12:45:32.680  1770  1770 I adbd    : adbd service requested 'shell,v2:export ANDROID_LOG_TAGS=''; exec logcat '-d''

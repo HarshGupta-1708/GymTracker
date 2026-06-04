@@ -24,15 +24,20 @@
       "versionCode": 3
     },
     "web": {
-      "output": "spa",
+      "output": "single",
       "favicon": "./assets/images/favicon.png"
     },
-    "plugins": [],
+    "plugins": [
+      "expo-font",
+      "expo-router",
+      "expo-secure-store",
+      "expo-sqlite",
+      "expo-web-browser"
+    ],
     "extra": {
       "eas": {
-        "projectId": "4ee12947-5aac-446c-b5e9-b65a8ff60249"
+        "projectId": "66c0e0bf-86f3-401d-9925-86dfbec070fa"
       }
-    },
-    "owner": "harshgupta1708"
+    }
   }
 }
