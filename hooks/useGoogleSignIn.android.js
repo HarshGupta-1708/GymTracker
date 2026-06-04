@@ -9,8 +9,7 @@ export function useGoogleSignIn() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Configure native Google Sign-in on mount
-    // webClientId must be the WEB client ID for Google to issue an idToken
+    // Configure native Google Sign-in on Android
     GoogleSignin.configure({
       webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
       offlineAccess: true,
@@ -39,12 +38,11 @@ export function useGoogleSignIn() {
       await signInWithCredential(auth, credential);
       
     } catch (err) {
-      console.error("Native Google Sign-In Error:", err);
+      console.error("Android Native Google Sign-In Error:", err);
       let errorMsg = "Google Sign-In failed.";
       
       if (err.code === statusCodes.SIGN_IN_CANCELLED) {
         errorMsg = "Sign-in was cancelled.";
-        console.log("User cancelled the sign-in flow.");
       } else if (err.code === statusCodes.IN_PROGRESS) {
         errorMsg = "Sign-in is already in progress.";
       } else if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
