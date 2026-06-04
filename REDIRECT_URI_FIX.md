@@ -3,6 +3,7 @@
 ## Problem Identified 🔴
 
 From the logs, the app was showing:
+
 ```
 LOG  Redirect URI (useProxy: true): exp://192.168.1.55:8081
 ```
@@ -48,7 +49,7 @@ await promptAsync(); // Works! Uses the proxy URL set above
 ✅ Redirect URI now correctly uses: `https://auth.expo.io`  
 ✅ Google OAuth will now accept the request  
 ✅ Android sign-in should work properly  
-✅ No more "invalid_request" or "state mismatch" errors  
+✅ No more "invalid_request" or "state mismatch" errors
 
 ## Testing After Update
 
