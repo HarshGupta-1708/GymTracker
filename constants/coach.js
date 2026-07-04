@@ -1,8 +1,11 @@
-// Coach AI configuration
-// Set EXPO_PUBLIC_COACH_API_URL after deploying coach-api to Render (see docs/COACH_AI_SETUP.md)
+// Coach AI configuration — set EXPO_PUBLIC_COACH_API_URL in .env or coachApiUrl in app.json
+
+import Constants from "expo-constants";
 
 export const COACH_API_URL =
-  process.env.EXPO_PUBLIC_COACH_API_URL || "";
+  process.env.EXPO_PUBLIC_COACH_API_URL ||
+  Constants.expoConfig?.extra?.coachApiUrl ||
+  "";
 
 export const COACH_DAILY_LIMIT = 20;
 

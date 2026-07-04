@@ -241,7 +241,7 @@ export function formatWeekContext(summary) {
     summary.weekSessions.length ? "This week's sessions:" : "No sessions this week yet.",
     ...lines,
     summary.topExercises.length
-      ? `Most sets: ${summary.topExercises.map((e) => `${e.name} (${e sets})`).join(", ")}`
+      ? `Most sets: ${summary.topExercises.map((e) => `${e.name} (${e.sets})`).join(", ")}`
       : "",
   ]
     .filter(Boolean)
