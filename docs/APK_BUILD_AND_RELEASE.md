@@ -49,11 +49,45 @@ Profile **`production`** → produces **AAB** (Play Store), not a direct phone A
 
 | Error | Fix |
 |-------|-----|
+| **`Entity not authorized` / permissions** | See **Fix EAS permission error** below |
+| **`EJSONPARSE` package.json** | Fixed — run `git pull` then `npm install` |
 | GitHub not connected | expo.dev → Account → GitHub → connect repo |
 | Wrong commit / old code | Ensure branch is `master`, latest commit |
 | Keystore prompt fails | Run from terminal: `eas build -p android --profile preview` |
-| `expo-router` error | Fixed in v1.2.0 — removed unused plugin |
 | Google Sign-In fails in APK | Add EAS SHA-1 to Google Cloud Console |
+
+### Fix EAS permission error (`Entity not authorized`)
+
+This means your Expo login cannot access project `66c0e0bf-...`.
+
+**Step 1 — Check who you are logged in as:**
+```bash
+npx eas-cli whoami
+```
+Should show: `harshgupta1708`
+
+**Step 2 — Re-link the project:**
+```bash
+cd /Users/harshgupta1708/Desktop/GymTracker
+npx eas-cli init --id 66c0e0bf-86f3-401d-9925-86dfbec070fa
+```
+
+**Step 3 — If Step 2 fails**, the project may be under a **different Expo email**:
+1. Open **https://expo.dev** in browser
+2. Check which account owns **gym-tracker** (top-right avatar)
+3. Logout CLI and login with that exact account:
+```bash
+npx eas-cli logout
+npx eas-cli login
+npx eas-cli init --id 66c0e0bf-86f3-401d-9925-86dfbec070fa
+```
+
+**Step 4 — If project is lost**, create a **new** Expo project (new keystore — may need uninstall old app):
+```bash
+npx eas-cli init
+# creates new projectId in app.json — commit that change
+npm run build:apk
+```
 
 Get EAS SHA-1:
 

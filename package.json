@@ -10,8 +10,9 @@
     "run:android": "expo run:android",
     "ios": "expo start --ios",
     "web": "expo start --web",
+    "lint": "expo lint",
     "build:apk": "eas build -p android --profile preview",
-    "build:apk:local": "eas build -p android --profile preview --local",
+    "build:apk:local": "eas build -p android --profile preview --local"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",
