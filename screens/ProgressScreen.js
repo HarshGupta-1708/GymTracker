@@ -2,13 +2,16 @@ import React, { useState, useMemo } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Dimensions
 } from 'react-native';
+import { useTheme } from "../context/ThemeContext";
 import { LineChart, BarChart } from 'react-native-chart-kit';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, shortDate } from '../constants/data';
+import { shortDate } from "../constants/data";
 
 const { width } = Dimensions.get('window');
 
 export default function ProgressScreen({ workouts, loading }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => createStyles(C), [C]);
   const [selectedEx, setSelectedEx] = useState(null);
   const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width - 32);
 
@@ -66,7 +69,7 @@ export default function ProgressScreen({ workouts, loading }) {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
+        <ActivityIndicator size="large" color={C.accent} />
         <Text style={styles.loadingText}>Loading Progress...</Text>
       </View>
     );
@@ -85,29 +88,32 @@ export default function ProgressScreen({ workouts, loading }) {
       {/* Overview Stats */}
       <View style={styles.statsContainer}>
         <StatBox
+          styles={styles}
           icon="dumbbell"
           label="SESSIONS"
           value={stats.sessions}
-          color={COLORS.accent}
+          color={C.accent}
         />
         <StatBox
+          styles={styles}
           icon="check-circle"
           label="TOTAL SETS"
           value={stats.totalSets}
-          color={COLORS.orange}
+          color={C.orange}
         />
         <StatBox
+          styles={styles}
           icon="weight-kilogram"
           label="TOTAL VOLUME"
           value={stats.totalVolume}
-          color={COLORS.green}
+          color={C.green}
         />
       </View>
 
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {exWithData.length === 0 ? (
           <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="chart-line" size={60} color={`${COLORS.muted}40`} />
+            <MaterialCommunityIcons name="chart-line" size={60} color={`${C.muted}40`} />
             <Text style={styles.emptyTitle}>No Progress Data Yet</Text>
             <Text style={styles.emptySubtitle}>Log workouts to see your progress charts</Text>
           </View>
@@ -122,7 +128,7 @@ export default function ProgressScreen({ workouts, loading }) {
                     key={ex}
                     style={[
                       styles.exButton,
-                      activeEx === ex && { backgroundColor: COLORS.accent, borderColor: COLORS.accent }
+                      activeEx === ex && { backgroundColor: C.accent, borderColor: C.accent }
                     ]}
                     onPress={() => setSelectedEx(ex)}
                   >
@@ -152,23 +158,23 @@ export default function ProgressScreen({ workouts, loading }) {
                       datasets: [{
                         data: progData.map(d => d.maxW),
                         strokeWidth: 2,
-                        color: () => COLORS.accent,
+                        color: () => C.accent,
                       }],
                     }}
                     width={chartWidth}
                     height={220}
                     chartConfig={{
-                      backgroundColor: COLORS.card,
-                      backgroundGradientFrom: COLORS.card,
-                      backgroundGradientTo: COLORS.surface,
+                      backgroundColor: C.card,
+                      backgroundGradientFrom: C.card,
+                      backgroundGradientTo: C.surface,
                       decimalPlaces: 0,
-                      color: () => COLORS.muted,
-                      labelColor: () => COLORS.muted,
+                      color: () => C.muted,
+                      labelColor: () => C.muted,
                       style: { borderRadius: 0 },
                       propsForDots: {
                         r: '4',
                         strokeWidth: '0',
-                        stroke: COLORS.accent,
+                        stroke: C.accent,
                       },
                     }}
                     style={{ marginVertical: 0, borderRadius: 0 }}
@@ -189,14 +195,14 @@ export default function ProgressScreen({ workouts, loading }) {
                     width={chartWidth}
                     height={220}
                     chartConfig={{
-                      backgroundColor: COLORS.card,
-                      backgroundGradientFrom: COLORS.card,
-                      backgroundGradientTo: COLORS.surface,
+                      backgroundColor: C.card,
+                      backgroundGradientFrom: C.card,
+                      backgroundGradientTo: C.surface,
                       decimalPlaces: 0,
-                      color: () => COLORS.muted,
-                      labelColor: () => COLORS.muted,
+                      color: () => C.muted,
+                      labelColor: () => C.muted,
                       propsForBackgroundLines: {
-                        stroke: COLORS.border,
+                        stroke: C.border,
                       },
                     }}
                     style={{ marginVertical: 0, borderRadius: 0 }}
@@ -209,22 +215,25 @@ export default function ProgressScreen({ workouts, loading }) {
                   {progData.length > 0 && (
                     <View style={styles.statsGrid}>
                       <StatCard
+                        styles={styles}
                         icon="trending-up"
                         label="Personal Best"
                         value={`${Math.max(...progData.map(d => d.maxW))}kg`}
-                        color={COLORS.gold}
+                        color={C.gold}
                       />
                       <StatCard
+                        styles={styles}
                         icon="calendar-check"
                         label="Sessions"
                         value={progData.length}
-                        color={COLORS.accent}
+                        color={C.accent}
                       />
                       <StatCard
-                        icon="chart-area"
+                        styles={styles}
+                        icon="chart-bell-curve"
                         label="Avg Volume"
                         value={`${Math.round(progData.reduce((s, d) => s + d.vol, 0) / progData.length)}`}
-                        color={COLORS.green}
+                        color={C.green}
                       />
                     </View>
                   )}
@@ -238,7 +247,7 @@ export default function ProgressScreen({ workouts, loading }) {
   );
 }
 
-function StatBox({ icon, label, value, color }) {
+function StatBox({ icon, label, value, color, styles }) {
   return (
     <View style={[styles.statBox, { borderLeftColor: color, borderLeftWidth: 3 }]}>
       <MaterialCommunityIcons name={icon} size={20} color={color} />
@@ -250,7 +259,7 @@ function StatBox({ icon, label, value, color }) {
   );
 }
 
-function StatCard({ icon, label, value, color }) {
+function StatCard({ icon, label, value, color, styles }) {
   return (
     <View style={styles.statCardBox}>
       <View style={[styles.statCardIcon, { backgroundColor: `${color}20` }]}>
@@ -262,20 +271,20 @@ function StatCard({ icon, label, value, color }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (C) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: C.bg,
   },
   centerContainer: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: C.bg,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 16,
   },
   loadingText: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 14,
   },
   header: {
@@ -285,19 +294,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     paddingTop: 8,
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.border,
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.text,
+    color: C.text,
     letterSpacing: 1,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: COLORS.muted,
+    color: C.muted,
     marginTop: 2,
   },
   statsContainer: {
@@ -309,21 +318,21 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderRadius: 10,
     paddingHorizontal: 12,
     paddingVertical: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
   },
   statBoxValue: {
     fontSize: 16,
     fontWeight: '900',
-    color: COLORS.text,
+    color: C.text,
   },
   statBoxLabel: {
     fontSize: 9,
-    color: COLORS.muted,
+    color: C.muted,
     fontWeight: '700',
     marginTop: 2,
     letterSpacing: 1,
@@ -342,12 +351,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.text,
+    color: C.text,
     marginTop: 12,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: COLORS.muted,
+    color: C.muted,
     marginTop: 6,
     textAlign: 'center',
   },
@@ -357,7 +366,7 @@ const styles = StyleSheet.create({
   sectionLabel: {
     fontSize: 11,
     fontWeight: '700',
-    color: COLORS.muted,
+    color: C.muted,
     letterSpacing: 1.5,
     marginBottom: 10,
   },
@@ -371,29 +380,29 @@ const styles = StyleSheet.create({
     marginRight: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderColor: C.border,
+    backgroundColor: C.surface,
     minWidth: 60,
   },
   exButtonText: {
-    color: COLORS.text,
+    color: C.text,
     fontSize: 11,
     fontWeight: '600',
     textAlign: 'center',
   },
   chartCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderRadius: 12,
     marginBottom: 16,
     padding:12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     overflow: 'hidden',
   },
   chartTitle: {
     fontSize: 13,
     fontWeight: '700',
-    color: COLORS.accent,
+    color: C.accent,
     marginBottom: 10,
   },
   statsGrid: {
@@ -402,12 +411,12 @@ const styles = StyleSheet.create({
   },
   statCardBox: {
     flex: 1,
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     borderRadius: 10,
     padding: 12,
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
   },
   statCardIcon: {
     width: 32,
@@ -424,7 +433,7 @@ const styles = StyleSheet.create({
   },
   statCardLabel: {
     fontSize: 9,
-    color: COLORS.muted,
+    color: C.muted,
     fontWeight: '700',
     letterSpacing: 0.5,
     textAlign: 'center',

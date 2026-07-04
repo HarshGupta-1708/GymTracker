@@ -40,8 +40,57 @@ export const formatSetFieldValue = (field, value) => {
   const num = parseFloat(value);
   if (Number.isNaN(num)) return String(value);
   if (field.key === "w" && num === 0) return "BW";
-  if (field.unit) return `${num}${field.unit === "kg" ? "kg" : field.unit ? ` ${field.unit}` : ""}`;
+  if (field.unit) {
+    const u = field.unit.trim();
+    if (u === "kg") return `${num}kg`;
+    if (u === "degree" || u === "°") return `${num}°`;
+    return `${num} ${u}`;
+  }
   return String(num);
+};
+
+export const getFieldsForSetDisplay = (exercise, set) => {
+  const defined = getExerciseFields(exercise);
+  const definedKeys = new Set(defined.map((f) => f.key));
+  const extraKeys = Object.keys(set || {}).filter(
+    (k) => k !== "t" && !definedKeys.has(k),
+  );
+  const extraFields = extraKeys.map((k) => ({
+    key: k,
+    label: k.replace(/_/g, " "),
+    unit: "",
+  }));
+  return [...defined, ...extraFields];
+};
+
+export const getDisplayFieldsForExercise = (exercise, workoutExercise) => {
+  const base = getExerciseFields(
+    exercise || { name: workoutExercise?.name, category: "Custom" },
+  );
+  const baseKeys = new Set(base.map((f) => f.key));
+  const extraKeys = new Set();
+  (workoutExercise?.sets || []).forEach((set) => {
+    Object.keys(set || {})
+      .filter((k) => k !== "t" && !baseKeys.has(k))
+      .forEach((k) => extraKeys.add(k));
+  });
+  const extras = [...extraKeys].map((k) => ({
+    key: k,
+    label: k.replace(/_/g, " "),
+    unit: "",
+  }));
+  return [...base, ...extras];
+};
+
+export const formatSetSummary = (fields, set) => {
+  return fields
+    .map((f) => {
+      const val = formatSetFieldValue(f, set[f.key]);
+      if (val === "-") return null;
+      return `${f.label}: ${val}`;
+    })
+    .filter(Boolean)
+    .join("  ·  ");
 };
 
 export const validateSetFields = (fields, values) => {

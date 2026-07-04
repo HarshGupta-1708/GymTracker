@@ -1,6 +1,6 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { signInAnonymously } from "firebase/auth";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -13,12 +13,14 @@ import {
     View,
 } from "react-native";
 import { auth } from "../config/firebaseConfig";
-import { COLORS } from "../constants/data";
+import { useTheme } from "../context/ThemeContext";
 import { useGoogleSignIn } from "../hooks/useGoogleSignIn";
 
 const { width } = Dimensions.get("window");
 
 export default function LoginScreen({ onGuestLogin }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => createStyles(C), [C]);
   const [guestLoading, setGuestLoading] = useState(false);
   const [guestError, setGuestError] = useState(null);
 
@@ -71,7 +73,7 @@ export default function LoginScreen({ onGuestLogin }) {
             <MaterialCommunityIcons
               name="dumbbell"
               size={60}
-              color={COLORS.accent}
+              color={C.accent}
             />
           </View>
           <Text style={styles.appTitle}>GYM TRACKER</Text>
@@ -79,9 +81,9 @@ export default function LoginScreen({ onGuestLogin }) {
         </View>
 
         <View style={styles.features}>
-          <FeatureItem icon="chart-line" text="Track Progress" />
-          <FeatureItem icon="cloud-sync" text="Cloud Sync" />
-          <FeatureItem icon="check-circle-outline" text="Offline Mode" />
+          <FeatureItem icon="chart-line" text="Track Progress" styles={styles} C={C} />
+          <FeatureItem icon="cloud-sync" text="Cloud Sync" styles={styles} C={C} />
+          <FeatureItem icon="check-circle-outline" text="Offline Mode" styles={styles} C={C} />
         </View>
 
         {/* Login Section */}
@@ -114,7 +116,7 @@ export default function LoginScreen({ onGuestLogin }) {
             onPress={loginAsGuest}
             disabled={loading}
           >
-            <MaterialCommunityIcons name="account-circle-outline" size={20} color={COLORS.accent} />
+            <MaterialCommunityIcons name="account-circle-outline" size={20} color={C.accent} />
             <Text style={styles.guestButtonText}>Continue as Guest</Text>
           </TouchableOpacity>
 
@@ -123,7 +125,7 @@ export default function LoginScreen({ onGuestLogin }) {
               <MaterialCommunityIcons
                 name="alert-circle"
                 size={16}
-                color={COLORS.error}
+                color={C.error}
               />
               <Text style={styles.errorText}>{error}</Text>
               <TouchableOpacity
@@ -149,21 +151,21 @@ export default function LoginScreen({ onGuestLogin }) {
   );
 }
 
-function FeatureItem({ icon, text }) {
+function FeatureItem({ icon, text, styles, C }) {
   return (
     <View style={styles.featureItem}>
       <View style={styles.featureIconBox}>
-        <MaterialCommunityIcons name={icon} size={24} color={COLORS.accent} />
+        <MaterialCommunityIcons name={icon} size={24} color={C.accent} />
       </View>
       <Text style={styles.featureText}>{text}</Text>
     </View>
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (C) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: C.bg,
     justifyContent: "space-between",
   },
   gradient: {
@@ -172,7 +174,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     height: "50%",
-    backgroundColor: COLORS.bg,
+    backgroundColor: C.bg,
   },
   content: {
     flex: 1,
@@ -188,9 +190,9 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 50,
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderWidth: 2,
-    borderColor: COLORS.accent,
+    borderColor: C.accent,
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 20,
@@ -198,13 +200,13 @@ const styles = StyleSheet.create({
   appTitle: {
     fontSize: 32,
     fontWeight: "900",
-    color: COLORS.text,
+    color: C.text,
     letterSpacing: 2,
     marginBottom: 8,
   },
   subtitle: {
     fontSize: 16,
-    color: COLORS.muted,
+    color: C.muted,
     letterSpacing: 0.5,
   },
   features: {
@@ -217,23 +219,23 @@ const styles = StyleSheet.create({
     gap: 12,
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
   },
   featureIconBox: {
     width: 40,
     height: 40,
     borderRadius: 8,
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     justifyContent: "center",
     alignItems: "center",
   },
   featureText: {
     fontSize: 14,
     fontWeight: "600",
-    color: COLORS.text,
+    color: C.text,
     flex: 1,
   },
   loginSection: {
@@ -242,26 +244,26 @@ const styles = StyleSheet.create({
   loginText: {
     fontSize: 16,
     fontWeight: "600",
-    color: COLORS.muted,
+    color: C.muted,
     textAlign: "center",
   },
   restoreHint: {
     fontSize: 12,
-    color: COLORS.muted,
+    color: C.muted,
     textAlign: "center",
     lineHeight: 17,
     paddingHorizontal: 8,
   },
   googleButton: {
     flexDirection: "row",
-    backgroundColor: COLORS.accent,
+    backgroundColor: C.accent,
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 10,
     justifyContent: "center",
     alignItems: "center",
     gap: 10,
-    shadowColor: COLORS.accent,
+    shadowColor: C.accent,
     shadowOpacity: 0.3,
     shadowRadius: 8,
     elevation: 8,
@@ -273,7 +275,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     backgroundColor: "transparent",
     borderWidth: 1.5,
-    borderColor: COLORS.accent,
+    borderColor: C.accent,
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 10,
@@ -285,7 +287,7 @@ const styles = StyleSheet.create({
   guestButtonText: {
     fontSize: 16,
     fontWeight: "700",
-    color: COLORS.accent,
+    color: C.accent,
     letterSpacing: 0.5,
   },
   googleButtonText: {
@@ -296,9 +298,9 @@ const styles = StyleSheet.create({
   },
   errorBox: {
     flexDirection: "row",
-    backgroundColor: `${COLORS.error}15`,
+    backgroundColor: `${C.error}15`,
     borderWidth: 1,
-    borderColor: COLORS.error,
+    borderColor: C.error,
     borderRadius: 8,
     padding: 12,
     gap: 8,
@@ -306,12 +308,12 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 12,
-    color: COLORS.error,
+    color: C.error,
     flex: 1,
     fontWeight: "500",
   },
   retryButton: {
-    backgroundColor: COLORS.error,
+    backgroundColor: C.error,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 6,
@@ -323,7 +325,7 @@ const styles = StyleSheet.create({
   },
   footer: {
     fontSize: 11,
-    color: COLORS.muted,
+    color: C.muted,
     textAlign: "center",
     letterSpacing: 0.3,
     marginTop: 20,

@@ -1,22 +1,12 @@
 import { MaterialCommunityIcons, FontAwesome5 } from '@expo/vector-icons';
+import { DEFAULT_THEME_ID, getThemeById } from './themes';
 
-// Color Theme
-export const COLORS = {
-  bg: "#080810",
-  card: "#0f0f1b",
-  border: "#1c1c30",
-  accent: "#00d4ff",
-  orange: "#ff6b2b",
-  gold: "#ffd700",
-  text: "#eeeeff",
-  muted: "#666680",
-  green: "#00e676",
-  surface: "#13132a",
-  inputBg: "#18182e",
-  success: "#4caf50",
-  error: "#ff5252",
-  warning: "#ffc107",
-};
+// Legacy export — synced at runtime when theme changes (see syncLegacyColors)
+export const COLORS = { ...getThemeById(DEFAULT_THEME_ID).colors };
+
+export function syncLegacyColors(colors) {
+  Object.assign(COLORS, colors);
+}
 
 // Exercise Categories
 export const CATEGORIES = ["Legs", "Push", "Pull", "Biceps", "Forearms", "Cardio", "Recovery", "Custom"];

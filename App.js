@@ -5,7 +5,7 @@ import { NavigationContainer } from "@react-navigation/native";
 import Constants from "expo-constants";
 import { StatusBar } from "expo-status-bar";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert,
     LogBox,
@@ -19,6 +19,8 @@ import AppSplash from "./components/AppSplash";
 import WhatsNewModal from "./components/WhatsNewModal";
 import { auth } from "./config/firebaseConfig";
 import { COLORS, PRESET_EXERCISES, todayStr } from "./constants/data";
+import { DEFAULT_THEME_ID, getThemeById } from "./constants/themes";
+import { ThemeProvider, useTheme } from "./context/ThemeContext";
 
 import DashboardScreen from "./screens/DashboardScreen";
 import ExercisesScreen from "./screens/ExercisesScreen";
@@ -28,13 +30,23 @@ import ProgressScreen from "./screens/ProgressScreen";
 import TodayScreen from "./screens/TodayScreen";
 
 import {
+    deleteWorkout,
     getWorkouts,
     listenExercises,
+    listenUserSettings,
     listenWorkouts,
     loadWorkoutLocal,
     saveExercisesLib,
     saveWorkout,
 } from "./utils/firestore";
+import {
+    applyNewFieldDefaults,
+    getAddedFieldKeys,
+    getResolvedFields,
+    persistWorkoutChanges,
+    removeExerciseFromWorkouts,
+    renameExerciseInWorkouts,
+} from "./utils/exerciseManagement";
 
 LogBox.ignoreLogs([
   "Non-serializable values were found in the navigation state",
@@ -42,6 +54,7 @@ LogBox.ignoreLogs([
 
 const Tab = createBottomTabNavigator();
 const APP_VERSION = Constants.expoConfig?.version || "1.1.0";
+const THEME_CACHE_KEY = "gt_theme_id";
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -131,6 +144,30 @@ export default function App() {
   const [exercises, setExercises] = useState(PRESET_EXERCISES);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showRestoreHint, setShowRestoreHint] = useState(false);
+  const [themeId, setThemeId] = useState(DEFAULT_THEME_ID);
+
+  useEffect(() => {
+    AsyncStorage.getItem(THEME_CACHE_KEY).then((id) => {
+      if (id && getThemeById(id).id === id) setThemeId(id);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (!user || auth.isDemo) return undefined;
+    const unsub = listenUserSettings((settings) => {
+      if (settings?.themeId && getThemeById(settings.themeId).id === settings.themeId) {
+        setThemeId(settings.themeId);
+        AsyncStorage.setItem(THEME_CACHE_KEY, settings.themeId);
+      }
+    });
+    return unsub;
+  }, [user]);
+
+  const handleThemeChange = useCallback(async (id) => {
+    if (!getThemeById(id)) return;
+    setThemeId(id);
+    await AsyncStorage.setItem(THEME_CACHE_KEY, id);
+  }, []);
 
   useEffect(() => {
     AsyncStorage.getItem("gt_demo_session")
@@ -257,9 +294,7 @@ export default function App() {
     setWorkouts(nextWorkouts);
   }, []);
 
-  const addCustomExercise = async (name, category, fields) => {
-    const newEx = { name, category, ...(fields?.length ? { fields } : {}) };
-    const updated = [...exercises, newEx];
+  const persistExercises = async (updated) => {
     setExercises(updated);
     if (user && !auth.isDemo) {
       await saveExercisesLib(updated);
@@ -267,6 +302,92 @@ export default function App() {
       await AsyncStorage.setItem(
         "gt_exercises_local_demo-user",
         JSON.stringify(updated),
+      );
+    }
+  };
+
+  const addCustomExercise = async (name, category, fields) => {
+    const newEx = { name, category, ...(fields?.length ? { fields } : {}) };
+    const updated = [...exercises, newEx];
+    await persistExercises(updated);
+  };
+
+  const updateExerciseWithHistory = async (
+    oldName,
+    updatedExercise,
+    { renameInHistory = false, fillNewFieldsWithZero = false } = {},
+  ) => {
+    const updated = {
+      name: updatedExercise.name,
+      category: updatedExercise.category,
+      ...(updatedExercise.fields?.length
+        ? { fields: updatedExercise.fields }
+        : {}),
+    };
+
+    const nextExercises = exercises.map((ex) =>
+      ex.name === oldName ? updated : ex,
+    );
+    await persistExercises(nextExercises);
+
+    let nextWorkouts = { ...workouts };
+    const changedDates = new Set();
+    const targetName =
+      renameInHistory && oldName !== updated.name ? updated.name : oldName;
+
+    if (renameInHistory && oldName !== updated.name) {
+      const result = renameExerciseInWorkouts(nextWorkouts, oldName, updated.name);
+      nextWorkouts = result.workouts;
+      result.changedDates.forEach((d) => changedDates.add(d));
+    }
+
+    if (fillNewFieldsWithZero) {
+      const oldExercise = exercises.find((e) => e.name === oldName);
+      const addedKeys = getAddedFieldKeys(
+        getResolvedFields(oldExercise),
+        updated.fields,
+      ).map((f) => f.key);
+      if (addedKeys.length) {
+        const result = applyNewFieldDefaults(
+          nextWorkouts,
+          targetName,
+          addedKeys,
+          0,
+        );
+        nextWorkouts = result.workouts;
+        result.changedDates.forEach((d) => changedDates.add(d));
+      }
+    }
+
+    if (changedDates.size > 0) {
+      setWorkouts(nextWorkouts);
+      await persistWorkoutChanges(
+        nextWorkouts,
+        [...changedDates],
+        saveWorkout,
+        deleteWorkout,
+      );
+    }
+  };
+
+  const removeExerciseWithHistory = async (
+    exerciseName,
+    { removeFromHistory = false } = {},
+  ) => {
+    const nextExercises = exercises.filter((ex) => ex.name !== exerciseName);
+    await persistExercises(nextExercises);
+
+    if (removeFromHistory) {
+      const { workouts: nextWorkouts, changedDates } = removeExerciseFromWorkouts(
+        workouts,
+        exerciseName,
+      );
+      setWorkouts(nextWorkouts);
+      await persistWorkoutChanges(
+        nextWorkouts,
+        changedDates,
+        saveWorkout,
+        deleteWorkout,
       );
     }
   };
@@ -292,18 +413,91 @@ export default function App() {
 
   const showSplash = loading || (user && workoutsLoading);
 
-  if (showSplash) {
-    return <AppSplash message={splashMessage} />;
-  }
+  return (
+    <ThemeProvider themeId={themeId}>
+      {showSplash ? (
+        <AppSplash message={splashMessage} />
+      ) : (
+        <MainApp
+          user={user}
+          themeId={themeId}
+          onThemeChange={handleThemeChange}
+          exercises={exercises}
+          workouts={workouts}
+          workoutsLoading={workoutsLoading}
+          showWhatsNew={showWhatsNew}
+          showRestoreHint={showRestoreHint}
+          onDismissRestoreHint={() => setShowRestoreHint(false)}
+          onWhatsNewDismiss={handleWhatsNewDismiss}
+          onWorkoutsChange={handleWorkoutsChange}
+          addCustomExercise={addCustomExercise}
+          updateExerciseWithHistory={updateExerciseWithHistory}
+          removeExerciseWithHistory={removeExerciseWithHistory}
+          addExerciseToToday={addExerciseToToday}
+          setUser={setUser}
+          setWorkouts={setWorkouts}
+          setWorkoutsLoading={setWorkoutsLoading}
+        />
+      )}
+    </ThemeProvider>
+  );
+}
+
+function MainApp({
+  user,
+  themeId,
+  onThemeChange,
+  exercises,
+  workouts,
+  workoutsLoading,
+  showWhatsNew,
+  showRestoreHint,
+  onDismissRestoreHint,
+  onWhatsNewDismiss,
+  onWorkoutsChange,
+  addCustomExercise,
+  updateExerciseWithHistory,
+  removeExerciseWithHistory,
+  addExerciseToToday,
+  setUser,
+  setWorkouts,
+  setWorkoutsLoading,
+}) {
+  const { colors: C } = useTheme();
+
+  const tabScreenOptions = useMemo(
+    () => ({
+      tabBarStyle: {
+        backgroundColor: C.tabBar || C.card,
+        borderTopColor: C.border,
+        borderTopWidth: 1,
+        paddingBottom: 4,
+        paddingTop: 4,
+        height: 70,
+      },
+      tabBarActiveTintColor: C.accent,
+      tabBarInactiveTintColor: C.muted,
+      tabBarLabelStyle: {
+        fontSize: 10,
+        fontWeight: "600",
+        marginTop: 0,
+      },
+      headerShown: false,
+      tabBarHideOnKeyboard: true,
+      lazy: true,
+      detachInactiveScreens: true,
+    }),
+    [C],
+  );
 
   return (
     <ErrorBoundary>
       <SafeAreaProvider>
-        <StatusBar style="light" backgroundColor={COLORS.bg} />
+        <StatusBar style="light" backgroundColor={C.bg} />
         <NavigationContainer>
           {!user ? (
             <SafeAreaView
-              style={{ flex: 1, backgroundColor: COLORS.bg }}
+              style={{ flex: 1, backgroundColor: C.bg }}
               edges={["top", "left", "right"]}
             >
               <LoginScreen
@@ -328,40 +522,24 @@ export default function App() {
           ) : (
             <Tab.Navigator
               initialRouteName="Dashboard"
-              screenOptions={{
-                tabBarStyle: {
-                  backgroundColor: COLORS.card,
-                  borderTopColor: COLORS.border,
-                  borderTopWidth: 1,
-                  paddingBottom: 4,
-                  paddingTop: 4,
-                  height: 70,
-                },
-                tabBarActiveTintColor: COLORS.accent,
-                tabBarInactiveTintColor: COLORS.muted,
-                tabBarLabelStyle: {
-                  fontSize: 10,
-                  fontWeight: "600",
-                  marginTop: 0,
-                },
-                headerShown: false,
-                tabBarHideOnKeyboard: true,
-              }}
+              screenOptions={tabScreenOptions}
             >
               <Tab.Screen
                 name="Dashboard"
                 children={({ navigation }) => (
                   <SafeAreaView
-                    style={{ flex: 1, backgroundColor: COLORS.bg }}
+                    style={{ flex: 1, backgroundColor: C.bg }}
                     edges={["top"]}
                   >
                     <DashboardScreen
                       user={user}
                       workouts={workouts}
                       navigation={navigation}
+                      themeId={themeId}
+                      onThemeChange={onThemeChange}
                       showRestoreHint={showRestoreHint}
-                      onDismissRestoreHint={() => setShowRestoreHint(false)}
-                      onWorkoutsChange={handleWorkoutsChange}
+                      onDismissRestoreHint={onDismissRestoreHint}
+                      onWorkoutsChange={onWorkoutsChange}
                       onSignOut={async () => {
                         if (auth.isDemo) {
                           auth.isDemo = false;
@@ -375,7 +553,7 @@ export default function App() {
                     <WhatsNewModal
                       visible={showWhatsNew}
                       version={APP_VERSION}
-                      onDismiss={handleWhatsNewDismiss}
+                      onDismiss={onWhatsNewDismiss}
                     />
                   </SafeAreaView>
                 )}
@@ -394,14 +572,14 @@ export default function App() {
                 name="Today"
                 children={({ navigation }) => (
                   <SafeAreaView
-                    style={{ flex: 1, backgroundColor: COLORS.bg }}
+                    style={{ flex: 1, backgroundColor: C.bg }}
                     edges={["top"]}
                   >
                     <TodayScreen
                       navigation={navigation}
                       exercises={exercises}
                       workouts={workouts}
-                      onWorkoutsChange={handleWorkoutsChange}
+                      onWorkoutsChange={onWorkoutsChange}
                       onAddCustomExercise={addCustomExercise}
                     />
                   </SafeAreaView>
@@ -421,13 +599,14 @@ export default function App() {
                 name="History"
                 children={() => (
                   <SafeAreaView
-                    style={{ flex: 1, backgroundColor: COLORS.bg }}
+                    style={{ flex: 1, backgroundColor: C.bg }}
                     edges={["top"]}
                   >
                     <HistoryScreen
                       workouts={workouts}
                       loading={workoutsLoading}
-                      onWorkoutsChange={handleWorkoutsChange}
+                      exercises={exercises}
+                      onWorkoutsChange={onWorkoutsChange}
                     />
                   </SafeAreaView>
                 )}
@@ -446,7 +625,7 @@ export default function App() {
                 name="Progress"
                 children={() => (
                   <SafeAreaView
-                    style={{ flex: 1, backgroundColor: COLORS.bg }}
+                    style={{ flex: 1, backgroundColor: C.bg }}
                     edges={["top"]}
                   >
                     <ProgressScreen
@@ -470,13 +649,16 @@ export default function App() {
                 name="Exercises"
                 children={({ navigation }) => (
                   <SafeAreaView
-                    style={{ flex: 1, backgroundColor: COLORS.bg }}
+                    style={{ flex: 1, backgroundColor: C.bg }}
                     edges={["top"]}
                   >
                     <ExercisesScreen
                       exercises={exercises}
+                      workouts={workouts}
                       loading={false}
                       onAddCustomExercise={addCustomExercise}
+                      onUpdateExercise={updateExerciseWithHistory}
+                      onRemoveExercise={removeExerciseWithHistory}
                       onAddToday={(name) =>
                         addExerciseToToday(name, navigation)
                       }

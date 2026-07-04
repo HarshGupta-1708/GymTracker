@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
+import { useMemo } from "react";
 import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { COLORS } from "../constants/data";
+import { useTheme } from "../context/ThemeContext";
 
 const WHATS_NEW = [
   "Workout history restores automatically when you sign in with Google",
@@ -11,15 +12,17 @@ const WHATS_NEW = [
 ];
 
 export default function WhatsNewModal({ visible, version, onDismiss }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => createStyles(C), [C]);
   return (
     <Modal visible={visible} transparent animationType="fade">
       <View style={styles.overlay}>
         <View style={styles.card}>
-          <MaterialCommunityIcons name="star-four-points" size={32} color={COLORS.gold} />
+          <MaterialCommunityIcons name="star-four-points" size={32} color={C.gold} />
           <Text style={styles.title}>What&apos;s New in v{version}</Text>
           {WHATS_NEW.map((item) => (
             <View key={item} style={styles.row}>
-              <MaterialCommunityIcons name="check-circle" size={16} color={COLORS.green} />
+              <MaterialCommunityIcons name="check-circle" size={16} color={C.green} />
               <Text style={styles.item}>{item}</Text>
             </View>
           ))}
@@ -32,7 +35,7 @@ export default function WhatsNewModal({ visible, version, onDismiss }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (C) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.7)",
@@ -41,19 +44,19 @@ const styles = StyleSheet.create({
     padding: 24,
   },
   card: {
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderRadius: 16,
     padding: 24,
     width: "100%",
     maxWidth: 400,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     alignItems: "center",
   },
   title: {
     fontSize: 18,
     fontWeight: "800",
-    color: COLORS.text,
+    color: C.text,
     marginTop: 12,
     marginBottom: 16,
     textAlign: "center",
@@ -67,12 +70,12 @@ const styles = StyleSheet.create({
   },
   item: {
     flex: 1,
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 13,
     lineHeight: 18,
   },
   btn: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: C.accent,
     paddingVertical: 12,
     paddingHorizontal: 32,
     borderRadius: 10,

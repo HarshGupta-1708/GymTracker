@@ -1,12 +1,22 @@
-import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Modal, Platform, TextInput } from 'react-native';
+import React, { useMemo, useRef, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Modal, Platform, TextInput, Pressable } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { COLORS, prettyDate, todayStr } from '../constants/data';
+import HistoryExerciseCard from '../components/HistoryExerciseCard';
+import { prettyDate, todayStr, PRESET_EXERCISES } from "../constants/data";
 import { deleteWorkout, saveWorkout } from '../utils/firestore';
+import { formatSetSummary, getDisplayFieldsForExercise } from '../utils/exerciseTracking';
+import { useTheme } from "../context/ThemeContext";
 
-export default function HistoryScreen({ workouts, loading, onWorkoutsChange }) {
+const DOUBLE_TAP_DELAY = 300;
+
+export default function HistoryScreen({ workouts, loading, onWorkoutsChange, exercises = PRESET_EXERCISES }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => createStyles(C), [C]);
   const [selectedDate, setSelectedDate] = useState(null);
+  const [viewMode, setViewMode] = useState('summary');
   const [dayTitleEdit, setDayTitleEdit] = useState('');
+  const lastTapRef = useRef({ date: null, time: 0 });
+  const singleTapTimer = useRef(null);
 
   const workoutDates = Object.keys(workouts)
     .filter(d => workouts[d]?.exs?.length)
@@ -17,9 +27,37 @@ export default function HistoryScreen({ workouts, loading, onWorkoutsChange }) {
   const selectedWorkout = selectedDate ? workouts[selectedDate] : null;
   const [deleting, setDeleting] = useState(false);
 
-  const openDate = (dateStr) => {
+  const openDate = (dateStr, mode = 'summary') => {
     setSelectedDate(dateStr);
+    setViewMode(mode);
     setDayTitleEdit(workouts[dateStr]?.dayTitle || '');
+  };
+
+  const closeModal = () => {
+    setSelectedDate(null);
+    setViewMode('summary');
+  };
+
+  const handleDayPress = (dateStr) => {
+    const now = Date.now();
+    const { date: lastDate, time: lastTime } = lastTapRef.current;
+
+    if (lastDate === dateStr && now - lastTime < DOUBLE_TAP_DELAY) {
+      if (singleTapTimer.current) {
+        clearTimeout(singleTapTimer.current);
+        singleTapTimer.current = null;
+      }
+      lastTapRef.current = { date: null, time: 0 };
+      openDate(dateStr, 'full');
+      return;
+    }
+
+    lastTapRef.current = { date: dateStr, time: now };
+    if (singleTapTimer.current) clearTimeout(singleTapTimer.current);
+    singleTapTimer.current = setTimeout(() => {
+      openDate(dateStr, 'summary');
+      singleTapTimer.current = null;
+    }, DOUBLE_TAP_DELAY);
   };
 
   const saveDayTitle = async () => {
@@ -30,17 +68,17 @@ export default function HistoryScreen({ workouts, loading, onWorkoutsChange }) {
       onWorkoutsChange({ ...workouts, [selectedDate]: updated });
     }
   };
+
   const handleDeleteSelectedDate = async () => {
     if (!selectedDate || deleting) return;
     try {
       setDeleting(true);
       await deleteWorkout(selectedDate);
-      setSelectedDate(null);
+      closeModal();
     } finally {
       setDeleting(false);
     }
   };
-
 
   const monthGroups = useMemo(() => {
     const grouped = {};
@@ -83,7 +121,7 @@ export default function HistoryScreen({ workouts, loading, onWorkoutsChange }) {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
+        <ActivityIndicator size="large" color={C.accent} />
         <Text style={styles.loadingText}>Loading History...</Text>
       </View>
     );
@@ -91,7 +129,6 @@ export default function HistoryScreen({ workouts, loading, onWorkoutsChange }) {
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>WORKOUT HISTORY</Text>
@@ -103,11 +140,12 @@ export default function HistoryScreen({ workouts, loading, onWorkoutsChange }) {
         </View>
       </View>
 
-      {/* Calendar-style history */}
+      <Text style={styles.hintBar}>Tap day for summary · Double-tap for full workout view</Text>
+
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {workoutDates.length === 0 ? (
           <View style={styles.emptyState}>
-            <MaterialCommunityIcons name="history" size={60} color={`${COLORS.muted}40`} />
+            <MaterialCommunityIcons name="history" size={60} color={`${C.muted}40`} />
             <Text style={styles.emptyTitle}>No History Yet</Text>
             <Text style={styles.emptySubtitle}>Start logging workouts to see them here</Text>
           </View>
@@ -118,22 +156,23 @@ export default function HistoryScreen({ workouts, loading, onWorkoutsChange }) {
               <View key={key} style={styles.monthCard}>
                 <Text style={styles.monthTitle}>{monthLabel(key)}</Text>
                 <View style={styles.weekHeader}>
-                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w) => (
-                    <Text key={`${key}-${w}`} style={styles.weekHeaderText}>{w}</Text>
+                  {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map((w, i) => (
+                    <Text key={`${key}-${w}-${i}`} style={styles.weekHeaderText}>{w}</Text>
                   ))}
                 </View>
                 <View style={styles.grid}>
                   {cells.map((cell, idx) => (
                     cell ? (
-                      <TouchableOpacity
+                      <Pressable
                         key={cell.dateStr}
-                        style={[
+                        style={({ pressed }) => [
                           styles.dayCell,
                           cell.hasWorkout && styles.dayCellActive,
                           cell.isToday && styles.dayCellToday,
+                          pressed && cell.hasWorkout && styles.dayCellPressed,
                         ]}
-                        onPress={() => cell.hasWorkout && openDate(cell.dateStr)}
-                        activeOpacity={cell.hasWorkout ? 0.8 : 1}
+                        onPress={() => cell.hasWorkout && handleDayPress(cell.dateStr)}
+                        disabled={!cell.hasWorkout}
                       >
                         <Text
                           style={[
@@ -145,7 +184,7 @@ export default function HistoryScreen({ workouts, loading, onWorkoutsChange }) {
                           {cell.day}
                         </Text>
                         {cell.hasWorkout && <View style={styles.dot} />}
-                      </TouchableOpacity>
+                      </Pressable>
                     ) : (
                       <View key={`${key}-empty-${idx}`} style={styles.dayCellEmpty} />
                     )
@@ -159,50 +198,90 @@ export default function HistoryScreen({ workouts, loading, onWorkoutsChange }) {
 
       <Modal visible={Boolean(selectedDate)} transparent animationType="slide">
         <View style={styles.modalOverlay}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, viewMode === 'full' && styles.modalCardFull]}>
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
                 <Text style={styles.modalTitle}>{selectedDate ? prettyDate(selectedDate) : ''}</Text>
                 {selectedWorkout?.dayTitle ? (
                   <Text style={styles.modalDayTitle}>{selectedWorkout.dayTitle}</Text>
                 ) : null}
+                <Text style={styles.modalModeLabel}>
+                  {viewMode === 'full' ? 'Full workout view' : 'Summary view'}
+                </Text>
               </View>
-              <View style={{ flexDirection: 'row', gap: 10 }}>
-                <TouchableOpacity onPress={handleDeleteSelectedDate} disabled={deleting}>
-                  <MaterialCommunityIcons name="trash-can-outline" size={20} color={COLORS.error} />
+              <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+                <TouchableOpacity
+                  onPress={() => setViewMode(viewMode === 'full' ? 'summary' : 'full')}
+                >
+                  <MaterialCommunityIcons
+                    name={viewMode === 'full' ? 'format-list-text' : 'view-agenda'}
+                    size={20}
+                    color={C.accent}
+                  />
                 </TouchableOpacity>
-                <TouchableOpacity onPress={() => setSelectedDate(null)}>
-                  <MaterialCommunityIcons name="close" size={22} color={COLORS.muted} />
+                <TouchableOpacity onPress={handleDeleteSelectedDate} disabled={deleting}>
+                  <MaterialCommunityIcons name="trash-can-outline" size={20} color={C.error} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={closeModal}>
+                  <MaterialCommunityIcons name="close" size={22} color={C.muted} />
                 </TouchableOpacity>
               </View>
             </View>
+
             {selectedWorkout && (
-              <ScrollView>
-                <View style={styles.dayTitleEditRow}>
-                  <MaterialCommunityIcons name="label-outline" size={16} color={COLORS.accent} />
-                  <TextInput
-                    style={styles.dayTitleEditInput}
-                    placeholder="Workout name (Leg Day, Push Pull...)"
-                    placeholderTextColor={COLORS.muted}
-                    value={dayTitleEdit}
-                    onChangeText={setDayTitleEdit}
-                    onBlur={saveDayTitle}
-                    onSubmitEditing={saveDayTitle}
-                  />
-                </View>
-                {selectedWorkout.exs.map((ex, idx) => (
-                  <View key={`${ex.name}-${idx}`} style={{ marginBottom: 10 }}>
-                    <Text style={styles.detailExName}>{ex.name}</Text>
-                    {ex.sets?.length ? ex.sets.map((set, sidx) => (
-                      <Text key={sidx} style={styles.detailSet}>
-                        {set.r
-                          ? `${set.w > 0 ? `${set.w}kg` : 'BW'} × ${set.r} reps`
-                          : `${set.durMin || 0} min${set.distKm ? ` • ${set.distKm} km` : ''}`}
-                        {set.t ? ` • ${set.t}` : ''}
-                      </Text>
-                    )) : <Text style={styles.detailSet}>No sets logged</Text>}
+              <ScrollView showsVerticalScrollIndicator={false}>
+                {viewMode === 'summary' && (
+                  <View style={styles.dayTitleEditRow}>
+                    <MaterialCommunityIcons name="label-outline" size={16} color={C.accent} />
+                    <TextInput
+                      style={styles.dayTitleEditInput}
+                      placeholder="Workout name (Leg Day, Push Pull...)"
+                      placeholderTextColor={C.muted}
+                      value={dayTitleEdit}
+                      onChangeText={setDayTitleEdit}
+                      onBlur={saveDayTitle}
+                      onSubmitEditing={saveDayTitle}
+                    />
                   </View>
-                ))}
+                )}
+
+                {viewMode === 'full' ? (
+                  selectedWorkout.exs.map((ex, idx) => {
+                    const exerciseDef = exercises.find((e) => e.name === ex.name);
+                    const fields = getDisplayFieldsForExercise(exerciseDef, ex);
+                    const cat = exerciseDef?.category || 'Custom';
+                    return (
+                      <HistoryExerciseCard
+                        key={`${ex.name}-${idx}`}
+                        ex={ex}
+                        category={cat}
+                        fields={fields}
+                      />
+                    );
+                  })
+                ) : (
+                  selectedWorkout.exs.map((ex, idx) => {
+                    const exerciseDef = exercises.find((e) => e.name === ex.name);
+                    const fields = getDisplayFieldsForExercise(exerciseDef, ex);
+                    return (
+                      <TouchableOpacity
+                        key={`${ex.name}-${idx}`}
+                        activeOpacity={0.7}
+                        onPress={() => setViewMode('full')}
+                      >
+                        <View style={styles.summaryExBlock}>
+                          <Text style={styles.detailExName}>{ex.name}</Text>
+                          {ex.sets?.length ? ex.sets.map((set, sidx) => (
+                            <Text key={sidx} style={styles.detailSet}>
+                              {formatSetSummary(fields, set)}
+                              {set.t ? `  ·  ${set.t}` : ''}
+                            </Text>
+                          )) : <Text style={styles.detailSet}>No sets logged</Text>}
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })
+                )}
               </ScrollView>
             )}
           </View>
@@ -212,20 +291,20 @@ export default function HistoryScreen({ workouts, loading, onWorkoutsChange }) {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (C) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: C.bg,
   },
   centerContainer: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: C.bg,
     justifyContent: 'center',
     alignItems: 'center',
     gap: 16,
   },
   loadingText: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 14,
   },
   header: {
@@ -235,19 +314,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     paddingTop: 8,
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.border,
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.text,
+    color: C.text,
     letterSpacing: 1,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: COLORS.muted,
+    color: C.muted,
     marginTop: 2,
   },
   headerStat: {
@@ -256,14 +335,24 @@ const styles = StyleSheet.create({
   headerStatValue: {
     fontSize: 20,
     fontWeight: '900',
-    color: COLORS.accent,
+    color: C.accent,
   },
   headerStatLabel: {
     fontSize: 9,
-    color: COLORS.muted,
+    color: C.muted,
     fontWeight: '700',
     marginTop: 2,
     letterSpacing: 1,
+  },
+  hintBar: {
+    textAlign: 'center',
+    color: C.muted,
+    fontSize: 11,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: C.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
   },
   scrollContent: {
     flex: 1,
@@ -279,32 +368,28 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 18,
     fontWeight: '700',
-    color: COLORS.text,
+    color: C.text,
     marginTop: 12,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: COLORS.muted,
+    color: C.muted,
     marginTop: 6,
     textAlign: 'center',
   },
   monthCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderRadius: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     padding: 12,
     ...Platform.select({
-      web: {
-        maxWidth: 400,
-        alignSelf: 'center',
-        width: '100%',
-      }
-    })
+      web: { maxWidth: 400, alignSelf: 'center', width: '100%' },
+    }),
   },
   monthTitle: {
-    color: COLORS.text,
+    color: C.text,
     fontSize: 14,
     fontWeight: '700',
     marginBottom: 10,
@@ -316,7 +401,7 @@ const styles = StyleSheet.create({
   weekHeaderText: {
     width: `${100 / 7}%`,
     textAlign: 'center',
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 10,
     fontWeight: '700',
   },
@@ -333,35 +418,38 @@ const styles = StyleSheet.create({
     marginBottom: 2,
   },
   dayCellActive: {
-    backgroundColor: `${COLORS.accent}18`,
+    backgroundColor: `${C.accent}18`,
     borderWidth: 1,
-    borderColor: `${COLORS.accent}80`,
+    borderColor: `${C.accent}80`,
+  },
+  dayCellPressed: {
+    backgroundColor: `${C.accent}30`,
   },
   dayCellToday: {
     borderWidth: 1,
-    borderColor: COLORS.gold,
+    borderColor: C.gold,
   },
   dayCellEmpty: {
     width: `${100 / 7}%`,
     aspectRatio: 0.85,
   },
   dayText: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 12,
     fontWeight: '600',
   },
   dayTextActive: {
-    color: COLORS.text,
+    color: C.text,
     fontWeight: '800',
   },
   dayTextToday: {
-    color: COLORS.gold,
+    color: C.gold,
   },
   dot: {
     width: 4,
     height: 4,
     borderRadius: 2,
-    backgroundColor: COLORS.accent,
+    backgroundColor: C.accent,
     marginTop: 2,
   },
   modalOverlay: {
@@ -369,28 +457,23 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
     justifyContent: 'flex-end',
     ...Platform.select({
-      web: {
-        justifyContent: 'center',
-        alignItems: 'center',
-      }
-    })
+      web: { justifyContent: 'center', alignItems: 'center' },
+    }),
   },
   modalCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: C.bg,
     borderTopLeftRadius: 16,
     borderTopRightRadius: 16,
     maxHeight: '70%',
     padding: 16,
     borderTopWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     ...Platform.select({
-      web: {
-        width: '90%',
-        maxWidth: 500,
-        borderRadius: 16,
-        borderWidth: 1,
-      }
-    })
+      web: { width: '90%', maxWidth: 500, borderRadius: 16, borderWidth: 1 },
+    }),
+  },
+  modalCardFull: {
+    maxHeight: '92%',
   },
   modalHeader: {
     flexDirection: 'row',
@@ -401,40 +484,52 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: COLORS.text,
+    color: C.text,
   },
   modalDayTitle: {
     fontSize: 12,
     fontWeight: '700',
-    color: COLORS.accent,
+    color: C.accent,
     marginTop: 4,
+  },
+  modalModeLabel: {
+    fontSize: 10,
+    color: C.muted,
+    marginTop: 4,
+    fontWeight: '600',
   },
   dayTitleEditRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
     marginBottom: 14,
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
   },
   dayTitleEditInput: {
     flex: 1,
-    color: COLORS.text,
+    color: C.text,
     fontSize: 13,
     fontWeight: '600',
   },
+  summaryExBlock: {
+    marginBottom: 12,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
   detailExName: {
-    color: COLORS.accent,
+    color: C.accent,
     fontSize: 13,
     fontWeight: '700',
     marginBottom: 6,
   },
   detailSet: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 12,
     marginBottom: 4,
     lineHeight: 18,

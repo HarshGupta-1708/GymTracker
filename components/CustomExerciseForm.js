@@ -1,6 +1,7 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Modal,
   Platform,
   ScrollView,
@@ -10,12 +11,14 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { CATEGORIES, CATEGORY_COLORS, COLORS } from "../constants/data";
+import { CATEGORIES, CATEGORY_COLORS } from "../constants/data";
+import { useTheme } from "../context/ThemeContext";
 import {
   FIELD_TEMPLATES,
   getDefaultFieldsForCategory,
   slugifyFieldKey,
 } from "../utils/exerciseTracking";
+import { getResolvedFields } from "../utils/exerciseManagement";
 
 export default function CustomExerciseForm({
   visible,
@@ -23,25 +26,54 @@ export default function CustomExerciseForm({
   onSave,
   exercises = [],
   title = "NEW EXERCISE",
+  initialExercise = null,
+  originalName = null,
+  saveLabel = "ADD EXERCISE",
 }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => createStyles(C), [C]);
   const [name, setName] = useState("");
-  const [category, setCategory] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("");
+  const [customCategories, setCustomCategories] = useState([]);
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [fields, setFields] = useState(getDefaultFieldsForCategory("Custom"));
   const [newFieldLabel, setNewFieldLabel] = useState("");
   const [newFieldUnit, setNewFieldUnit] = useState("");
 
-  const categoryOptions = useMemo(() => {
+  const savedCategories = useMemo(() => {
     const fromLib = [...new Set(exercises.map((e) => e.category).filter(Boolean))];
-    return [...new Set([...CATEGORIES, ...fromLib])];
+    return fromLib;
   }, [exercises]);
+
+  const allCategories = useMemo(() => {
+    return [...new Set([...savedCategories, ...customCategories])];
+  }, [savedCategories, customCategories]);
 
   const reset = () => {
     setName("");
-    setCategory("");
+    setSelectedCategory("");
+    setCustomCategories([]);
+    setNewCategoryName("");
     setFields(getDefaultFieldsForCategory("Custom"));
     setNewFieldLabel("");
     setNewFieldUnit("");
   };
+
+  useEffect(() => {
+    if (!visible) {
+      reset();
+      return;
+    }
+    if (initialExercise) {
+      setName(initialExercise.name || "");
+      setSelectedCategory(initialExercise.category || "");
+      setFields(getResolvedFields(initialExercise));
+      setCustomCategories([]);
+      setNewCategoryName("");
+      setNewFieldLabel("");
+      setNewFieldUnit("");
+    }
+  }, [visible, initialExercise]);
 
   const handleClose = () => {
     reset();
@@ -49,8 +81,20 @@ export default function CustomExerciseForm({
   };
 
   const selectCategory = (cat) => {
-    setCategory(cat);
-    setFields(getDefaultFieldsForCategory(cat));
+    setSelectedCategory(cat);
+    if (!initialExercise && CATEGORIES.includes(cat)) {
+      setFields(getDefaultFieldsForCategory(cat));
+    }
+  };
+
+  const addCustomCategory = () => {
+    const label = newCategoryName.trim();
+    if (!label) return;
+    if (!allCategories.includes(label)) {
+      setCustomCategories((prev) => [...prev, label]);
+    }
+    setSelectedCategory(label);
+    setNewCategoryName("");
   };
 
   const applyTemplate = (templateKey) => {
@@ -73,9 +117,20 @@ export default function CustomExerciseForm({
 
   const handleSave = () => {
     const trimmedName = name.trim();
-    const trimmedCategory = category.trim() || "Custom";
+    const trimmedCategory = selectedCategory.trim() || newCategoryName.trim() || "Custom";
     if (!trimmedName) return;
+    if (!trimmedCategory) return;
     if (!fields.length) return;
+
+    const checkName = originalName || trimmedName;
+    if (
+      trimmedName !== checkName &&
+      exercises.some((e) => e.name === trimmedName)
+    ) {
+      Alert.alert("Name taken", "An exercise with this name already exists.");
+      return;
+    }
+
     onSave?.({
       name: trimmedName,
       category: trimmedCategory,
@@ -93,7 +148,7 @@ export default function CustomExerciseForm({
           <View style={styles.header}>
             <Text style={styles.title}>{title}</Text>
             <TouchableOpacity onPress={handleClose}>
-              <MaterialCommunityIcons name="close" size={24} color={COLORS.muted} />
+              <MaterialCommunityIcons name="close" size={24} color={C.muted} />
             </TouchableOpacity>
           </View>
 
@@ -102,36 +157,60 @@ export default function CustomExerciseForm({
             <TextInput
               style={styles.input}
               placeholder="e.g., Incline Treadmill Run"
-              placeholderTextColor={COLORS.muted}
+              placeholderTextColor={C.muted}
               value={name}
               onChangeText={setName}
             />
 
             <Text style={[styles.label, { marginTop: 14 }]}>CATEGORY</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Type any category (Leg Day, Cardio, Push...)"
-              placeholderTextColor={COLORS.muted}
-              value={category}
-              onChangeText={setCategory}
-            />
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipRow}>
-              {categoryOptions.map((cat) => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[
-                    styles.chip,
-                    category === cat && {
-                      backgroundColor: CATEGORY_COLORS[cat] || COLORS.accent,
-                      borderColor: CATEGORY_COLORS[cat] || COLORS.accent,
-                    },
-                  ]}
-                  onPress={() => selectCategory(cat)}
-                >
-                  <Text style={[styles.chipText, category === cat && { color: "#000" }]}>{cat}</Text>
+            <Text style={styles.hint}>Add any category name you want (Leg Day, Push, Treadmill...)</Text>
+
+            {allCategories.length > 0 && (
+              <View style={styles.chipWrap}>
+                {allCategories.map((cat) => (
+                  <TouchableOpacity
+                    key={cat}
+                    style={[
+                      styles.chip,
+                      selectedCategory === cat && {
+                        backgroundColor: CATEGORY_COLORS[cat] || C.accent,
+                        borderColor: CATEGORY_COLORS[cat] || C.accent,
+                      },
+                    ]}
+                    onPress={() => selectCategory(cat)}
+                  >
+                    <Text style={[styles.chipText, selectedCategory === cat && { color: "#000" }]}>
+                      {cat}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            <View style={styles.addFieldBox}>
+              <Text style={styles.label}>ADD CUSTOM CATEGORY</Text>
+              <View style={styles.addFieldRow}>
+                <TextInput
+                  style={[styles.input, { flex: 1 }]}
+                  placeholder="Category name (e.g. Leg Day)"
+                  placeholderTextColor={C.muted}
+                  value={newCategoryName}
+                  onChangeText={setNewCategoryName}
+                  onSubmitEditing={addCustomCategory}
+                  returnKeyType="done"
+                />
+                <TouchableOpacity style={styles.addFieldBtn} onPress={addCustomCategory}>
+                  <MaterialCommunityIcons name="plus" size={20} color="#000" />
                 </TouchableOpacity>
-              ))}
-            </ScrollView>
+              </View>
+            </View>
+
+            {selectedCategory ? (
+              <View style={styles.selectedBadge}>
+                <MaterialCommunityIcons name="check-circle" size={14} color={C.green} />
+                <Text style={styles.selectedBadgeText}>Selected: {selectedCategory}</Text>
+              </View>
+            ) : null}
 
             <Text style={[styles.label, { marginTop: 14 }]}>TRACKING FIELDS</Text>
             <Text style={styles.hint}>Choose what to log for each set (reps, weight, min, speed, etc.)</Text>
@@ -155,7 +234,7 @@ export default function CustomExerciseForm({
                   {f.unit ? <Text style={styles.fieldUnit}>{f.unit}</Text> : null}
                 </View>
                 <TouchableOpacity onPress={() => removeField(f.key)}>
-                  <MaterialCommunityIcons name="close-circle" size={20} color={COLORS.error} />
+                  <MaterialCommunityIcons name="close-circle" size={20} color={C.error} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -166,14 +245,16 @@ export default function CustomExerciseForm({
                 <TextInput
                   style={[styles.input, { flex: 1 }]}
                   placeholder="Field name (e.g. Incline)"
-                  placeholderTextColor={COLORS.muted}
+                  placeholderTextColor={C.muted}
                   value={newFieldLabel}
                   onChangeText={setNewFieldLabel}
+                  onSubmitEditing={addCustomField}
+                  returnKeyType="done"
                 />
                 <TextInput
                   style={[styles.input, { width: 70 }]}
                   placeholder="Unit"
-                  placeholderTextColor={COLORS.muted}
+                  placeholderTextColor={C.muted}
                   value={newFieldUnit}
                   onChangeText={setNewFieldUnit}
                 />
@@ -184,9 +265,13 @@ export default function CustomExerciseForm({
             </View>
           </ScrollView>
 
-          <TouchableOpacity style={styles.saveBtn} onPress={handleSave}>
+          <TouchableOpacity
+            style={[styles.saveBtn, (!name.trim() || !selectedCategory || !fields.length) && { opacity: 0.5 }]}
+            onPress={handleSave}
+            disabled={!name.trim() || !selectedCategory || !fields.length}
+          >
             <MaterialCommunityIcons name="plus" size={16} color="#000" />
-            <Text style={styles.saveBtnText}>ADD EXERCISE</Text>
+            <Text style={styles.saveBtnText}>{saveLabel}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -194,7 +279,7 @@ export default function CustomExerciseForm({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (C) => StyleSheet.create({
   overlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.75)",
@@ -202,14 +287,14 @@ const styles = StyleSheet.create({
     ...Platform.select({ web: { justifyContent: "center", alignItems: "center" } }),
   },
   content: {
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderRadius: 20,
     padding: 20,
     maxHeight: "90%",
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: C.border,
     ...Platform.select({
-      web: { width: "90%", maxWidth: 500, borderRadius: 16, borderWidth: 1, borderColor: COLORS.border },
+      web: { width: "90%", maxWidth: 500, borderRadius: 16, borderWidth: 1, borderColor: C.border },
     }),
   },
   header: {
@@ -221,79 +306,100 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 18,
     fontWeight: "900",
-    color: COLORS.text,
+    color: C.text,
     letterSpacing: 1,
   },
   label: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1,
     marginBottom: 8,
   },
   hint: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 11,
     marginBottom: 10,
   },
   input: {
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: C.inputBg,
     borderRadius: 10,
     padding: 12,
-    color: COLORS.text,
+    color: C.text,
     fontSize: 14,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
   },
   chipRow: {
-    marginTop: 8,
+    marginTop: 4,
     marginBottom: 4,
+  },
+  chipWrap: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginBottom: 10,
   },
   chip: {
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.border,
-    marginRight: 8,
-    backgroundColor: COLORS.surface,
+    borderColor: C.border,
+    backgroundColor: C.surface,
   },
   chipText: {
-    color: COLORS.text,
+    color: C.text,
     fontSize: 12,
     fontWeight: "600",
+  },
+  selectedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: `${C.green}15`,
+    borderRadius: 8,
+    alignSelf: "flex-start",
+  },
+  selectedBadgeText: {
+    color: C.green,
+    fontSize: 12,
+    fontWeight: "700",
   },
   templateChip: {
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.accent,
+    borderColor: C.accent,
     marginRight: 8,
-    backgroundColor: `${COLORS.accent}15`,
+    backgroundColor: `${C.accent}15`,
   },
   templateChipText: {
-    color: COLORS.accent,
+    color: C.accent,
     fontSize: 11,
     fontWeight: "700",
   },
   fieldRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     borderRadius: 8,
     padding: 10,
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
   },
   fieldName: {
-    color: COLORS.text,
+    color: C.text,
     fontSize: 13,
     fontWeight: "600",
   },
   fieldUnit: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 11,
     marginTop: 2,
   },
@@ -307,7 +413,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   addFieldBtn: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: C.accent,
     width: 40,
     height: 40,
     borderRadius: 8,
@@ -316,7 +422,7 @@ const styles = StyleSheet.create({
   },
   saveBtn: {
     flexDirection: "row",
-    backgroundColor: COLORS.accent,
+    backgroundColor: C.accent,
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: "center",

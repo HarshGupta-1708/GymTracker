@@ -2,9 +2,12 @@ import React, { useMemo, useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, TextInput, Alert, Platform, Image } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
-import { COLORS, USER_GOALS_DEFAULT, todayStr, prettyDate } from "../constants/data";
+import { USER_GOALS_DEFAULT, todayStr, prettyDate } from "../constants/data";
 import { calculateStreaks, listenUserSettings, saveUserSettings, listenBodyPhotos, saveBodyPhotoEntry, deleteBodyPhotoEntry, getWorkouts } from "../utils/firestore";
 import { exportUserData, importUserData } from "../utils/backup";
+import { useTheme } from "../context/ThemeContext";
+import ThemePickerModal from "../components/ThemePickerModal";
+import { getThemeById } from "../constants/themes";
 
 const compressImageWeb = (base64Str, maxWidth, maxHeight, quality = 0.5) => {
   return new Promise((resolve) => {
@@ -45,19 +48,24 @@ export default function DashboardScreen({
   workouts,
   onSignOut,
   navigation,
+  themeId,
+  onThemeChange,
   showRestoreHint,
   onDismissRestoreHint,
   onWorkoutsChange,
 }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => createStyles(C), [C]);
   const [settings, setSettings] = useState({
     goalsPerWeek: USER_GOALS_DEFAULT.activitiesPerWeek,
     activeDaysPerWeek: USER_GOALS_DEFAULT.activeDaysPerWeek,
     targetWeeks: USER_GOALS_DEFAULT.targetWeeks,
-    theme: "dark",
+    themeId: themeId || "midnightIron",
   });
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [tempGoal, setTempGoal] = useState('4');
   const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showThemeModal, setShowThemeModal] = useState(false);
   const [profileData, setProfileData] = useState({
     displayName: "",
     age: "",
@@ -241,13 +249,19 @@ export default function DashboardScreen({
   }, [workouts, settings]);
 
   const handleSaveGoal = async () => {
-    const goal = parseInt(tempGoal) || 4;
+    const goal = parseInt(tempGoal, 10) || USER_GOALS_DEFAULT.activitiesPerWeek;
     if (goal < 1 || goal > 7) {
       Alert.alert('Invalid Goal', 'Please enter a number between 1 and 7');
       return;
     }
-    await saveUserSettings({ ...settings, goalsPerWeek: goal, activeDaysPerWeek: goal });
+    const updatedSettings = {
+      ...settings,
+      goalsPerWeek: goal,
+      activeDaysPerWeek: goal,
+    };
+    setSettings(updatedSettings);
     setShowGoalModal(false);
+    await saveUserSettings(updatedSettings);
   };
 
   const handleExport = async () => {
@@ -292,6 +306,15 @@ export default function DashboardScreen({
     );
   };
 
+  const activeThemeId = themeId || settings.themeId || "midnightIron";
+  const currentTheme = useMemo(() => getThemeById(activeThemeId), [activeThemeId]);
+
+  const handleThemeSelect = async (id) => {
+    onThemeChange?.(id);
+    await saveUserSettings({ ...settings, themeId: id });
+    setShowThemeModal(false);
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -303,7 +326,7 @@ export default function DashboardScreen({
           {settings.profilePhoto ? (
             <Image source={{ uri: settings.profilePhoto }} style={styles.profileImageAvatar} />
           ) : (
-            <MaterialCommunityIcons name="account-circle" size={18} color={COLORS.accent} />
+            <MaterialCommunityIcons name="account-circle" size={18} color={C.accent} />
           )}
           <Text style={styles.profileText} numberOfLines={1}>
             {settings.displayName || user?.displayName || "Athlete"}
@@ -314,25 +337,25 @@ export default function DashboardScreen({
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {showRestoreHint && (
           <TouchableOpacity style={styles.restoreBanner} onPress={onDismissRestoreHint}>
-            <MaterialCommunityIcons name="cloud-check" size={18} color={COLORS.green} />
+            <MaterialCommunityIcons name="cloud-check" size={18} color={C.green} />
             <Text style={styles.restoreBannerText}>
               History restored from cloud. Same Google account keeps your data after reinstall.
             </Text>
-            <MaterialCommunityIcons name="close" size={16} color={COLORS.muted} />
+            <MaterialCommunityIcons name="close" size={16} color={C.muted} />
           </TouchableOpacity>
         )}
 
         {/* Main Stats */}
         <View style={styles.statsGrid}>
-          <StatCard label="SESSIONS" value={stats.sessions} icon="calendar-check" color={COLORS.accent} isHero={true} />
-          <StatCard label="LONGEST STREAK WEEK" value={stats.longestWeekStreak} icon="fire" color={COLORS.orange} />
-          <StatCard label="CURRENT STREAK WEEK" value={stats.currentWeekStreak} icon="calendar-sync" color={COLORS.green} />
+          <StatCard label="SESSIONS" value={stats.sessions} icon="calendar-check" color={C.accent} isHero={true} styles={styles} />
+          <StatCard label="LONGEST STREAK WEEK" value={stats.longestWeekStreak} icon="fire" color={C.orange} styles={styles} />
+          <StatCard label="CURRENT STREAK WEEK" value={stats.currentWeekStreak} icon="calendar-sync" color={C.green} styles={styles} />
         </View>
 
         {/* Today's Status */}
         <View style={styles.statusCard}>
           <Text style={styles.statusLabel}>TODAY</Text>
-          <Text style={[styles.statusValue, { color: stats.todayLogged ? COLORS.green : COLORS.muted }]}>
+          <Text style={[styles.statusValue, { color: stats.todayLogged ? C.green : C.muted }]}>
             {stats.todayLogged ? "✓ Logged" : "Not started"}
           </Text>
         </View>
@@ -346,7 +369,7 @@ export default function DashboardScreen({
                   <Image source={{ uri: settings.profilePhoto }} style={styles.profileAvatarThumbnail} />
                 ) : (
                   <View style={styles.profileAvatarPlaceholder}>
-                    <MaterialCommunityIcons name="account" size={24} color={COLORS.accent} />
+                    <MaterialCommunityIcons name="account" size={24} color={C.accent} />
                   </View>
                 )}
               </TouchableOpacity>
@@ -356,7 +379,7 @@ export default function DashboardScreen({
               </View>
             </View>
             <TouchableOpacity onPress={() => setShowProfileModal(true)}>
-              <MaterialCommunityIcons name="cog" size={18} color={COLORS.accent} />
+              <MaterialCommunityIcons name="cog" size={18} color={C.accent} />
             </TouchableOpacity>
           </View>
           
@@ -379,20 +402,20 @@ export default function DashboardScreen({
             style={styles.bodyHistoryButton}
             onPress={() => setShowBodyHistoryModal(true)}
           >
-            <MaterialCommunityIcons name="camera-account" size={16} color={COLORS.accent} />
+            <MaterialCommunityIcons name="camera-account" size={16} color={C.accent} />
             <Text style={styles.bodyHistoryButtonText}>View Body Progress Photos</Text>
-            <MaterialCommunityIcons name="chevron-right" size={16} color={COLORS.muted} style={{ marginLeft: "auto" }} />
+            <MaterialCommunityIcons name="chevron-right" size={16} color={C.muted} style={{ marginLeft: "auto" }} />
           </TouchableOpacity>
         </View>
 
         {/* Streak Info */}
         <View style={styles.streakContainer}>
-          <View style={[styles.streakCard, { borderLeftColor: COLORS.accent }]}>
+          <View style={[styles.streakCard, { borderLeftColor: C.accent }]}>
             <View style={styles.streakHeader}>
-              <MaterialCommunityIcons name="check-decagram" size={16} color={COLORS.accent} />
+              <MaterialCommunityIcons name="check-decagram" size={16} color={C.accent} />
               <Text style={styles.streakLabel}>COMPLETE DAYS THIS WEEK</Text>
             </View>
-            <Text style={[styles.streakValue, { color: COLORS.accent }]}>{stats.thisWeekWorkouts}</Text>
+            <Text style={[styles.streakValue, { color: C.accent }]}>{stats.thisWeekWorkouts}</Text>
           </View>
         </View>
 
@@ -403,8 +426,13 @@ export default function DashboardScreen({
               <Text style={styles.goalLabel}>Finish {stats.goalsPerWeek} activities / week</Text>
               <Text style={styles.goalValue}>Week {Math.min(stats.targetWeeks, stats.currentWeekNo)}/{stats.targetWeeks}</Text>
             </View>
-            <TouchableOpacity onPress={() => setShowGoalModal(true)}>
-              <MaterialCommunityIcons name="pencil" size={18} color={COLORS.accent} />
+            <TouchableOpacity
+              onPress={() => {
+                setTempGoal(String(settings.goalsPerWeek || USER_GOALS_DEFAULT.activitiesPerWeek));
+                setShowGoalModal(true);
+              }}
+            >
+              <MaterialCommunityIcons name="pencil" size={18} color={C.accent} />
             </TouchableOpacity>
           </View>
           
@@ -414,7 +442,7 @@ export default function DashboardScreen({
                 styles.progressFill,
                 {
                   width: `${stats.goalProgress}%`,
-                  backgroundColor: stats.goalProgress >= 100 ? COLORS.green : COLORS.accent,
+                  backgroundColor: stats.goalProgress >= 100 ? C.green : C.accent,
                 },
               ]}
             />
@@ -429,18 +457,28 @@ export default function DashboardScreen({
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => navigation.navigate("History")}>
-          <MaterialCommunityIcons name="history" size={18} color={COLORS.accent} />
+          <MaterialCommunityIcons name="history" size={18} color={C.accent} />
           <Text style={styles.secondaryButtonText}>View History</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => navigation.navigate("Progress")}>
-          <MaterialCommunityIcons name="chart-line" size={18} color={COLORS.accent} />
+          <MaterialCommunityIcons name="chart-line" size={18} color={C.accent} />
           <Text style={styles.secondaryButtonText}>View Performance</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => navigation.navigate("Exercises")}>
-          <MaterialCommunityIcons name="format-list-bulleted" size={18} color={COLORS.accent} />
+          <MaterialCommunityIcons name="format-list-bulleted" size={18} color={C.accent} />
           <Text style={styles.secondaryButtonText}>Manage Exercises</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.secondaryButton]}
+          onPress={() => setShowThemeModal(true)}
+        >
+          <MaterialCommunityIcons name="palette" size={18} color={C.accent} />
+          <Text style={styles.secondaryButtonText}>
+            Gym Theme · {currentTheme.emoji} {currentTheme.name}
+          </Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -448,7 +486,7 @@ export default function DashboardScreen({
           onPress={handleExport}
           disabled={backupBusy}
         >
-          <MaterialCommunityIcons name="export" size={18} color={COLORS.accent} />
+          <MaterialCommunityIcons name="export" size={18} color={C.accent} />
           <Text style={styles.secondaryButtonText}>Export Backup</Text>
         </TouchableOpacity>
 
@@ -457,15 +495,22 @@ export default function DashboardScreen({
           onPress={handleImport}
           disabled={backupBusy}
         >
-          <MaterialCommunityIcons name="import" size={18} color={COLORS.accent} />
+          <MaterialCommunityIcons name="import" size={18} color={C.accent} />
           <Text style={styles.secondaryButtonText}>Import Backup</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.button, styles.dangerButton]} onPress={onSignOut}>
-          <MaterialCommunityIcons name="logout" size={18} color={COLORS.error} />
-          <Text style={[styles.secondaryButtonText, { color: COLORS.error }]}>Sign Out</Text>
+          <MaterialCommunityIcons name="logout" size={18} color={C.error} />
+          <Text style={[styles.secondaryButtonText, { color: C.error }]}>Sign Out</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      <ThemePickerModal
+        visible={showThemeModal}
+        currentThemeId={activeThemeId}
+        onSelect={handleThemeSelect}
+        onClose={() => setShowThemeModal(false)}
+      />
 
       {/* Goal Setting Modal */}
       <Modal visible={showGoalModal} transparent animationType="fade">
@@ -508,7 +553,7 @@ export default function DashboardScreen({
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>ATHLETE PROFILE</Text>
               <TouchableOpacity onPress={() => setShowProfileModal(false)}>
-                <MaterialCommunityIcons name="close" size={22} color={COLORS.muted} />
+                <MaterialCommunityIcons name="close" size={22} color={C.muted} />
               </TouchableOpacity>
             </View>
 
@@ -521,7 +566,7 @@ export default function DashboardScreen({
                     {profileData.profilePhoto ? (
                       <Image source={{ uri: profileData.profilePhoto }} style={styles.profileAvatarLarge} />
                     ) : (
-                      <MaterialCommunityIcons name="camera-plus" size={28} color={COLORS.accent} />
+                      <MaterialCommunityIcons name="camera-plus" size={28} color={C.accent} />
                     )}
                   </TouchableOpacity>
                 </View>
@@ -532,7 +577,7 @@ export default function DashboardScreen({
                     {profileData.bodyPhoto ? (
                       <Image source={{ uri: profileData.bodyPhoto }} style={styles.bodyImageLarge} />
                     ) : (
-                      <MaterialCommunityIcons name="image-plus" size={28} color={COLORS.accent} />
+                      <MaterialCommunityIcons name="image-plus" size={28} color={C.accent} />
                     )}
                   </TouchableOpacity>
                 </View>
@@ -543,7 +588,7 @@ export default function DashboardScreen({
               <TextInput
                 style={styles.input}
                 placeholder="Athlete Name"
-                placeholderTextColor={COLORS.muted}
+                placeholderTextColor={C.muted}
                 value={profileData.displayName}
                 onChangeText={(val) => setProfileData(p => ({ ...p, displayName: val }))}
               />
@@ -554,7 +599,7 @@ export default function DashboardScreen({
                   <TextInput
                     style={styles.input}
                     placeholder="25"
-                    placeholderTextColor={COLORS.muted}
+                    placeholderTextColor={C.muted}
                     keyboardType="number-pad"
                     value={profileData.age}
                     onChangeText={(val) => setProfileData(p => ({ ...p, age: val }))}
@@ -566,7 +611,7 @@ export default function DashboardScreen({
                     style={[styles.input, styles.unitToggle]}
                     onPress={() => setProfileData(p => ({ ...p, units: p.units === 'Metric' ? 'Imperial' : 'Metric' }))}
                   >
-                    <Text style={{ color: COLORS.text, fontWeight: '700', fontSize: 13, textAlign: 'center' }}>
+                    <Text style={{ color: C.text, fontWeight: '700', fontSize: 13, textAlign: 'center' }}>
                       {profileData.units}
                     </Text>
                   </TouchableOpacity>
@@ -579,7 +624,7 @@ export default function DashboardScreen({
                   <TextInput
                     style={styles.input}
                     placeholder={profileData.units === 'Metric' ? "75" : "165"}
-                    placeholderTextColor={COLORS.muted}
+                    placeholderTextColor={C.muted}
                     keyboardType="decimal-pad"
                     value={profileData.weight}
                     onChangeText={(val) => setProfileData(p => ({ ...p, weight: val }))}
@@ -590,7 +635,7 @@ export default function DashboardScreen({
                   <TextInput
                     style={styles.input}
                     placeholder={profileData.units === 'Metric' ? "175" : "69"}
-                    placeholderTextColor={COLORS.muted}
+                    placeholderTextColor={C.muted}
                     keyboardType="decimal-pad"
                     value={profileData.height}
                     onChangeText={(val) => setProfileData(p => ({ ...p, height: val }))}
@@ -617,14 +662,14 @@ export default function DashboardScreen({
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>BODY PROGRESS HISTORY</Text>
               <TouchableOpacity onPress={() => setShowBodyHistoryModal(false)}>
-                <MaterialCommunityIcons name="close" size={22} color={COLORS.muted} />
+                <MaterialCommunityIcons name="close" size={22} color={C.muted} />
               </TouchableOpacity>
             </View>
 
             {bodyPhotos.length === 0 ? (
               <View style={{ alignItems: "center", justifyContent: "center", paddingVertical: 40 }}>
-                <MaterialCommunityIcons name="camera-off" size={48} color={`${COLORS.muted}40`} />
-                <Text style={{ color: COLORS.muted, fontSize: 13, marginTop: 12, textAlign: "center" }}>
+                <MaterialCommunityIcons name="camera-off" size={48} color={`${C.muted}40`} />
+                <Text style={{ color: C.muted, fontSize: 13, marginTop: 12, textAlign: "center" }}>
                   No progress photos saved yet.{"\n"}Add body photos by updating your profile.
                 </Text>
               </View>
@@ -636,10 +681,10 @@ export default function DashboardScreen({
                       key={item.id}
                       style={{
                         width: "48%",
-                        backgroundColor: COLORS.surface,
+                        backgroundColor: C.surface,
                         borderRadius: 8,
                         borderWidth: 1,
-                        borderColor: COLORS.border,
+                        borderColor: C.border,
                         overflow: "hidden",
                         marginBottom: 4,
                       }}
@@ -647,10 +692,10 @@ export default function DashboardScreen({
                     >
                       <Image source={{ uri: item.photo }} style={{ width: "100%", height: 110, resizeMode: "cover" }} />
                       <View style={{ padding: 8 }}>
-                        <Text style={{ color: COLORS.text, fontSize: 11, fontWeight: "700" }}>
+                        <Text style={{ color: C.text, fontSize: 11, fontWeight: "700" }}>
                           {prettyDate(item.date)}
                         </Text>
-                        <Text style={{ color: COLORS.muted, fontSize: 9, marginTop: 2, fontWeight: "600" }}>
+                        <Text style={{ color: C.muted, fontSize: 9, marginTop: 2, fontWeight: "600" }}>
                           {item.weight} {item.units === "Imperial" ? "lbs" : "kg"}
                         </Text>
                       </View>
@@ -665,13 +710,13 @@ export default function DashboardScreen({
         {/* Selected Photo Detail Zoom Modal */}
         <Modal visible={Boolean(activeHistoryPhoto)} transparent animationType="fade">
           <View style={[styles.modalOverlay, { backgroundColor: "rgba(0,0,0,0.9)" }]}>
-            <View style={{ width: "90%", maxWidth: 500, backgroundColor: COLORS.card, borderRadius: 12, borderWidth: 1, borderColor: COLORS.border, padding: 16 }}>
+            <View style={{ width: "90%", maxWidth: 500, backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 16 }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <Text style={{ color: COLORS.text, fontWeight: "800", fontSize: 14 }}>
+                <Text style={{ color: C.text, fontWeight: "800", fontSize: 14 }}>
                   {activeHistoryPhoto ? prettyDate(activeHistoryPhoto.date) : ""}
                 </Text>
                 <TouchableOpacity onPress={() => setActiveHistoryPhoto(null)}>
-                  <MaterialCommunityIcons name="close" size={24} color={COLORS.muted} />
+                  <MaterialCommunityIcons name="close" size={24} color={C.muted} />
                 </TouchableOpacity>
               </View>
 
@@ -682,15 +727,15 @@ export default function DashboardScreen({
                     style={{ width: "100%", height: 260, borderRadius: 8, resizeMode: "contain", backgroundColor: "#000" }}
                   />
                   <View style={{ marginTop: 14, gap: 6 }}>
-                    <Text style={{ color: COLORS.text, fontSize: 13, lineHeight: 18 }}>
+                    <Text style={{ color: C.text, fontSize: 13, lineHeight: 18 }}>
                       {activeHistoryPhoto.description}
                     </Text>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: COLORS.border, paddingTop: 10, marginTop: 6 }}>
-                      <Text style={{ color: COLORS.muted, fontSize: 11 }}>
-                        Weight: <Text style={{ color: COLORS.accent, fontWeight: "700" }}>{activeHistoryPhoto.weight} {activeHistoryPhoto.units === "Imperial" ? "lbs" : "kg"}</Text>
+                    <View style={{ flexDirection: "row", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: C.border, paddingTop: 10, marginTop: 6 }}>
+                      <Text style={{ color: C.muted, fontSize: 11 }}>
+                        Weight: <Text style={{ color: C.accent, fontWeight: "700" }}>{activeHistoryPhoto.weight} {activeHistoryPhoto.units === "Imperial" ? "lbs" : "kg"}</Text>
                       </Text>
-                      <Text style={{ color: COLORS.muted, fontSize: 11 }}>
-                        Height: <Text style={{ color: COLORS.accent, fontWeight: "700" }}>{activeHistoryPhoto.height} {activeHistoryPhoto.units === "Imperial" ? "in" : "cm"}</Text>
+                      <Text style={{ color: C.muted, fontSize: 11 }}>
+                        Height: <Text style={{ color: C.accent, fontWeight: "700" }}>{activeHistoryPhoto.height} {activeHistoryPhoto.units === "Imperial" ? "in" : "cm"}</Text>
                       </Text>
                     </View>
 
@@ -714,8 +759,8 @@ export default function DashboardScreen({
                         );
                       }}
                     >
-                      <MaterialCommunityIcons name="trash-can" size={16} color={COLORS.error} />
-                      <Text style={{ color: COLORS.error, fontWeight: "700", fontSize: 13 }}>DELETE ENTRY</Text>
+                      <MaterialCommunityIcons name="trash-can" size={16} color={C.error} />
+                      <Text style={{ color: C.error, fontWeight: "700", fontSize: 13 }}>DELETE ENTRY</Text>
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -728,7 +773,7 @@ export default function DashboardScreen({
   );
 }
 
-function StatCard({ label, value, icon, color, isHero }) {
+function StatCard({ label, value, icon, color, isHero, styles }) {
   if (isHero) {
     return (
       <View style={[
@@ -754,59 +799,59 @@ function StatCard({ label, value, icon, color, isHero }) {
   );
 }
 
-const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.bg },
+const createStyles = (C) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.bg },
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.border,
   },
-  title: { fontSize: 16, fontWeight: "700", color: COLORS.text, letterSpacing: 1 },
-  subtitle: { fontSize: 12, color: COLORS.muted, marginTop: 2 },
+  title: { fontSize: 16, fontWeight: "700", color: C.text, letterSpacing: 1 },
+  subtitle: { fontSize: 12, color: C.muted, marginTop: 2 },
   profilePill: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
     maxWidth: 150,
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
-  profileText: { color: COLORS.text, fontSize: 12, fontWeight: "600" },
+  profileText: { color: C.text, fontSize: 12, fontWeight: "600" },
   scrollContent: { flex: 1, padding: 12 },
   restoreBanner: {
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
-    backgroundColor: `${COLORS.green}15`,
+    backgroundColor: `${C.green}15`,
     borderWidth: 1,
-    borderColor: `${COLORS.green}40`,
+    borderColor: `${C.green}40`,
     borderRadius: 10,
     padding: 12,
     marginBottom: 12,
   },
   restoreBannerText: {
     flex: 1,
-    color: COLORS.text,
+    color: C.text,
     fontSize: 12,
     lineHeight: 17,
   },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   statCard: {
     width: "48%",
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderRadius: 10,
     padding: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     gap: 6,
   },
   heroStatCard: {
@@ -816,64 +861,65 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: 16,
     paddingHorizontal: 20,
+    backgroundColor: C.heroGradient || `${C.accent}12`,
   },
   statValue: { fontSize: 18, fontWeight: "900" },
-  statLabel: { fontSize: 10, color: COLORS.muted, fontWeight: "700", letterSpacing: 0.8 },
+  statLabel: { fontSize: 10, color: C.muted, fontWeight: "700", letterSpacing: 0.8 },
   statusCard: {
     marginBottom: 14,
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     borderRadius: 10,
     padding: 12,
   },
-  statusLabel: { fontSize: 10, color: COLORS.muted, fontWeight: "700", letterSpacing: 1 },
+  statusLabel: { fontSize: 10, color: C.muted, fontWeight: "700", letterSpacing: 1 },
   statusValue: { marginTop: 4, fontSize: 14, fontWeight: "700" },
   streakContainer: { flexDirection: "row", gap: 10, marginBottom: 14 },
   streakCard: {
     flex: 1,
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     borderRadius: 10,
     padding: 12,
     borderLeftWidth: 3,
   },
   streakHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
-  streakLabel: { fontSize: 10, color: COLORS.muted, fontWeight: "700", letterSpacing: 0.8 },
+  streakLabel: { fontSize: 10, color: C.muted, fontWeight: "700", letterSpacing: 0.8 },
   streakValue: { fontSize: 20, fontWeight: "900" },
   goalCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     borderRadius: 10,
     padding: 12,
     marginBottom: 14,
   },
   goalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 },
-  goalLabel: { fontSize: 10, color: COLORS.muted, fontWeight: "700", letterSpacing: 0.8 },
-  goalValue: { fontSize: 16, fontWeight: "900", color: COLORS.text, marginTop: 4 },
+  goalLabel: { fontSize: 10, color: C.muted, fontWeight: "700", letterSpacing: 0.8 },
+  goalValue: { fontSize: 16, fontWeight: "900", color: C.text, marginTop: 4 },
   progressBar: {
     height: 8,
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     borderRadius: 4,
     overflow: "hidden",
     marginBottom: 6,
   },
   progressFill: { height: "100%", borderRadius: 4 },
-  progressText: { fontSize: 12, color: COLORS.muted, fontWeight: "600", textAlign: "right" },
+  progressText: { fontSize: 12, color: C.muted, fontWeight: "600", textAlign: "right" },
   liftCard: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     borderRadius: 10,
     padding: 12,
     marginBottom: 14,
   },
-  liftLabel: { fontSize: 10, color: COLORS.muted, fontWeight: "700", letterSpacing: 0.8 },
+  liftLabel: { fontSize: 10, color: C.muted, fontWeight: "700", letterSpacing: 0.8 },
   liftValue: { fontSize: 16, fontWeight: "900", marginTop: 4 },
   button: {
     flexDirection: "row",
@@ -884,11 +930,11 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     marginBottom: 10,
   },
-  primaryButton: { backgroundColor: COLORS.accent },
-  secondaryButton: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.border },
-  dangerButton: { backgroundColor: COLORS.surface, borderWidth: 1, borderColor: COLORS.error },
+  primaryButton: { backgroundColor: C.accent },
+  secondaryButton: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.border },
+  dangerButton: { backgroundColor: C.surface, borderWidth: 1, borderColor: C.error },
   primaryButtonText: { color: "#000", fontWeight: "800", fontSize: 13 },
-  secondaryButtonText: { color: COLORS.accent, fontWeight: "700", fontSize: 13 },
+  secondaryButtonText: { color: C.accent, fontWeight: "700", fontSize: 13 },
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0,0,0,0.5)",
@@ -896,34 +942,34 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   modalContent: {
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderRadius: 15,
     padding: 20,
     width: "80%",
     maxWidth: 300,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
   },
   modalTitle: {
     fontSize: 16,
     fontWeight: "900",
-    color: COLORS.text,
+    color: C.text,
     marginBottom: 8,
     letterSpacing: 1,
   },
   modalSubtitle: {
     fontSize: 12,
-    color: COLORS.muted,
+    color: C.muted,
     marginBottom: 16,
     fontWeight: "600",
   },
   goalInput: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     borderRadius: 8,
     padding: 12,
-    color: COLORS.text,
+    color: C.text,
     fontSize: 18,
     fontWeight: "700",
     textAlign: "center",
@@ -931,9 +977,9 @@ const styles = StyleSheet.create({
   },
   modalButtonGroup: { flexDirection: "row", gap: 10 },
   profileStatsCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     borderRadius: 10,
     padding: 14,
     marginBottom: 14,
@@ -949,32 +995,32 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: 20,
     borderWidth: 1.5,
-    borderColor: COLORS.accent,
+    borderColor: C.accent,
   },
   profileAvatarPlaceholder: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     justifyContent: "center",
     alignItems: "center",
   },
   profileNameText: {
-    color: COLORS.text,
+    color: C.text,
     fontSize: 14,
     fontWeight: "700",
   },
   profileDetailsSub: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 11,
     marginTop: 2,
   },
   statsRow: {
     flexDirection: "row",
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: C.border,
     paddingTop: 12,
     justifyContent: "space-between",
   },
@@ -983,13 +1029,13 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   statSubLabel: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 9,
     fontWeight: "700",
     letterSpacing: 0.8,
   },
   statValText: {
-    color: COLORS.text,
+    color: C.text,
     fontSize: 14,
     fontWeight: "700",
     marginTop: 4,
@@ -1001,11 +1047,11 @@ const styles = StyleSheet.create({
     marginTop: 14,
     paddingTop: 12,
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: C.border,
     width: "100%",
   },
   bodyHistoryButtonText: {
-    color: COLORS.accent,
+    color: C.accent,
     fontSize: 12,
     fontWeight: "700",
   },
@@ -1014,7 +1060,7 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 9,
     borderWidth: 1,
-    borderColor: COLORS.accent,
+    borderColor: C.accent,
   },
   profileModalContent: {
     width: "90%",
@@ -1031,7 +1077,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   photoLabel: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.8,
@@ -1041,9 +1087,9 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     borderStyle: "dashed",
     justifyContent: "center",
     alignItems: "center",
@@ -1058,9 +1104,9 @@ const styles = StyleSheet.create({
     width: 140,
     height: 80,
     borderRadius: 10,
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     borderWidth: 1.5,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     borderStyle: "dashed",
     justifyContent: "center",
     alignItems: "center",
@@ -1082,10 +1128,10 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     paddingBottom: 10,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.border,
   },
   inputLabel: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 10,
     fontWeight: "700",
     letterSpacing: 0.8,
@@ -1093,13 +1139,13 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   input: {
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: C.inputBg,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     borderRadius: 8,
     paddingHorizontal: 12,
     paddingVertical: 8,
-    color: COLORS.text,
+    color: C.text,
     fontSize: 14,
     fontWeight: "600",
     height: 42,

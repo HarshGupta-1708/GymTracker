@@ -9,6 +9,9 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../config/firebaseConfig";
 
+const getEffectiveUid = () =>
+  auth.currentUser?.uid || (auth.isDemo ? "demo-user" : null);
+
 // Dynamic storage keys namespaced by user UID to prevent data leaking between Gmail & Guest accounts
 const getWorkoutsKey = () => {
   const uid = auth.currentUser?.uid || (auth.isDemo ? "demo-user" : "guest");
@@ -129,20 +132,23 @@ export const getWorkoutsByDateRange = (workouts, startDate, endDate) => {
 
 export const saveWorkout = async (date, workoutData) => {
   try {
-    const uid = auth.currentUser?.uid;
-    if (!uid) throw new Error("Not authenticated");
-
-    // Save to Firestore (auto syncs offline)
-    const ref = doc(db, "users", uid, "workouts", date);
-    await setDoc(ref, workoutData, { merge: true });
-
-    // Also save locally
     await saveWorkoutLocal(date, workoutData);
 
+    const uid = getEffectiveUid();
+    if (!uid) {
+      console.warn("Save workout: no auth — saved locally only");
+      return false;
+    }
+
+    if (auth.isDemo) {
+      return true;
+    }
+
+    const ref = doc(db, "users", uid, "workouts", date);
+    await setDoc(ref, workoutData, { merge: true });
     return true;
   } catch (err) {
     console.error("Save workout error:", err);
-    // Still save locally even if Firestore fails
     await saveWorkoutLocal(date, workoutData);
     return false;
   }
@@ -174,8 +180,14 @@ export const loadWorkoutLocal = async () => {
 
 export const getWorkouts = async () => {
   try {
-    const uid = auth.currentUser?.uid;
-    if (!uid) throw new Error("Not authenticated");
+    const uid = getEffectiveUid();
+    if (!uid) {
+      return await loadWorkoutLocal();
+    }
+
+    if (auth.isDemo) {
+      return await loadWorkoutLocal();
+    }
 
     const ref = collection(db, "users", uid, "workouts");
     const snapshot = await getDocs(ref);
@@ -196,9 +208,9 @@ export const getWorkouts = async () => {
 
 export const listenWorkouts = (callback) => {
   try {
-    const uid = auth.currentUser?.uid;
-    if (!uid) {
-      callback({});
+    const uid = getEffectiveUid();
+    if (!uid || auth.isDemo) {
+      loadWorkoutLocal().then(callback);
       return () => {};
     }
 
@@ -231,12 +243,13 @@ export const listenWorkouts = (callback) => {
 
 export const deleteWorkout = async (date) => {
   try {
-    const uid = auth.currentUser?.uid;
-    if (!uid) throw new Error("Not authenticated");
+    const uid = getEffectiveUid();
+    if (!uid) {
+      console.warn("Delete workout: no auth — removing locally only");
+    } else if (!auth.isDemo) {
+      await deleteDoc(doc(db, "users", uid, "workouts", date));
+    }
 
-    await deleteDoc(doc(db, "users", uid, "workouts", date));
-
-    // Remove from local
     const allWorkouts = JSON.parse(
       (await AsyncStorage.getItem(getWorkoutsKey())) || "{}",
     );
@@ -254,17 +267,23 @@ export const deleteWorkout = async (date) => {
 
 export const saveExercisesLib = async (exercises) => {
   try {
-    const uid = auth.currentUser?.uid;
-    if (!uid) throw new Error("Not authenticated");
-
-    const ref = doc(db, "users", uid, "exercises", "library");
-    await setDoc(ref, { items: exercises }, { merge: true });
-
-    // Save locally
     await AsyncStorage.setItem(
       getExercisesKey(),
       JSON.stringify(exercises),
     );
+
+    const uid = getEffectiveUid();
+    if (!uid) {
+      console.warn("Save exercises: no auth — saved locally only");
+      return false;
+    }
+
+    if (auth.isDemo) {
+      return true;
+    }
+
+    const ref = doc(db, "users", uid, "exercises", "library");
+    await setDoc(ref, { items: exercises }, { merge: true });
     return true;
   } catch (err) {
     console.error("Save exercises error:", err);
@@ -278,8 +297,11 @@ export const saveExercisesLib = async (exercises) => {
 
 export const getExercisesLib = async () => {
   try {
-    const uid = auth.currentUser?.uid;
-    if (!uid) throw new Error("Not authenticated");
+    const uid = getEffectiveUid();
+    if (!uid || auth.isDemo) {
+      const local = await AsyncStorage.getItem(getExercisesKey());
+      return local ? JSON.parse(local) : null;
+    }
 
     const ref = doc(db, "users", uid, "exercises", "library");
     const snapshot = await getDocs(collection(ref.parent, ref.id));
@@ -309,9 +331,11 @@ export const getExercisesLib = async () => {
 
 export const listenExercises = (callback) => {
   try {
-    const uid = auth.currentUser?.uid;
-    if (!uid) {
-      callback(null);
+    const uid = getEffectiveUid();
+    if (!uid || auth.isDemo) {
+      AsyncStorage.getItem(getExercisesKey())
+        .then((data) => callback(data ? JSON.parse(data) : null))
+        .catch(() => callback(null));
       return () => {};
     }
 
@@ -381,7 +405,7 @@ export const decryptPhoto = (encryptedStr) => {
 
 export const saveUserSettings = async (settings) => {
   try {
-    const uid = auth.currentUser?.uid || (auth.isDemo ? "demo-user" : null);
+    const uid = getEffectiveUid();
     if (!uid) throw new Error("Not authenticated");
 
     // Scramble photos for cloud storage
@@ -413,7 +437,7 @@ export const saveUserSettings = async (settings) => {
 
 export const loadUserSettings = async () => {
   try {
-    const uid = auth.currentUser?.uid || (auth.isDemo ? "demo-user" : null);
+    const uid = getEffectiveUid();
     if (!uid) throw new Error("Not authenticated");
 
     if (auth.isDemo) {
@@ -454,7 +478,7 @@ export const loadUserSettings = async () => {
 
 export const listenUserSettings = (callback) => {
   try {
-    const uid = auth.currentUser?.uid || (auth.isDemo ? "demo-user" : null);
+    const uid = getEffectiveUid();
     if (!uid) {
       callback({ goalsPerWeek: 4, theme: "dark" });
       return () => {};
@@ -504,7 +528,7 @@ export const listenUserSettings = (callback) => {
 
 export const saveBodyPhotoEntry = async (photoEntry) => {
   try {
-    const uid = auth.currentUser?.uid || (auth.isDemo ? "demo-user" : null);
+    const uid = getEffectiveUid();
     if (!uid) throw new Error("Not authenticated");
 
     // Scramble photo for cloud storage
@@ -538,7 +562,7 @@ export const saveBodyPhotoEntry = async (photoEntry) => {
 
 export const listenBodyPhotos = (callback) => {
   try {
-    const uid = auth.currentUser?.uid || (auth.isDemo ? "demo-user" : null);
+    const uid = getEffectiveUid();
     if (!uid) {
       callback([]);
       return () => {};
@@ -584,7 +608,7 @@ export const listenBodyPhotos = (callback) => {
 
 export const deleteBodyPhotoEntry = async (entryId) => {
   try {
-    const uid = auth.currentUser?.uid || (auth.isDemo ? "demo-user" : null);
+    const uid = getEffectiveUid();
     if (!uid) throw new Error("Not authenticated");
 
     if (auth.isDemo) {

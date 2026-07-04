@@ -13,21 +13,14 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import {
-    CATEGORIES,
-    CATEGORY_COLORS,
-    COLORS,
-    PRESET_EXERCISES,
-    WORKOUT_PLANS,
-    prettyDate,
-    toDateStr,
-    todayStr,
-} from "../constants/data";
+import { CATEGORIES, CATEGORY_COLORS, PRESET_EXERCISES, WORKOUT_PLANS, prettyDate, toDateStr, todayStr } from "../constants/data";
 import CustomExerciseForm from "../components/CustomExerciseForm";
+import { useTheme } from "../context/ThemeContext";
 import { estimateKcal, saveWorkout } from "../utils/firestore";
 import {
     buildSetFromFields,
     formatSetFieldValue,
+    getDisplayFieldsForExercise,
     getExerciseFields,
     validateSetFields,
 } from "../utils/exerciseTracking";
@@ -41,6 +34,8 @@ export default function TodayScreen({
   onWorkoutsChange,
   onAddCustomExercise,
 }) {
+  const { colors: C } = useTheme();
+  const styles = useMemo(() => createStyles(C), [C]);
   const [date, setDate] = useState(todayStr());
   const [localWorkouts, setLocalWorkouts] = useState({});
   const workoutsRef = useRef({});
@@ -303,7 +298,7 @@ export default function TodayScreen({
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={COLORS.accent} />
+        <ActivityIndicator size="large" color={C.accent} />
         <Text style={styles.loadingText}>Loading Workouts...</Text>
       </View>
     );
@@ -316,7 +311,7 @@ export default function TodayScreen({
         <View style={{ flex: 1 }}>
           <Text style={styles.headerTitle}>TODAY'S WORKOUT</Text>
           <TouchableOpacity onPress={() => setModal("calendarLookup")} style={{ alignSelf: 'flex-start', marginTop: 2 }}>
-            <Text style={[styles.headerDate, { color: COLORS.accent, fontWeight: '700' }]}>
+            <Text style={[styles.headerDate, { color: C.accent, fontWeight: '700' }]}>
               {prettyDate(date)} ▾
             </Text>
             {wk.dayTitle ? (
@@ -325,11 +320,11 @@ export default function TodayScreen({
           </TouchableOpacity>
         </View>
         <View style={styles.syncing}>
-          {syncing && <ActivityIndicator size="small" color={COLORS.accent} />}
+          {syncing && <ActivityIndicator size="small" color={C.accent} />}
           <Text
             style={[
               styles.syncText,
-              { color: syncing ? COLORS.accent : COLORS.green },
+              { color: syncing ? C.accent : C.green },
             ]}
           >
             {syncing ? "Syncing..." : "Synced"}
@@ -343,7 +338,7 @@ export default function TodayScreen({
           <MaterialCommunityIcons
             name="chevron-left"
             size={24}
-            color={COLORS.muted}
+            color={C.muted}
           />
         </TouchableOpacity>
         <TouchableOpacity
@@ -353,7 +348,7 @@ export default function TodayScreen({
           <MaterialCommunityIcons
             name="calendar"
             size={16}
-            color={COLORS.accent}
+            color={C.accent}
           />
           <Text style={styles.dateText}>{prettyDate(date)} ▾</Text>
         </TouchableOpacity>
@@ -370,18 +365,18 @@ export default function TodayScreen({
           <MaterialCommunityIcons
             name="chevron-right"
             size={24}
-            color={date >= todayStr() ? COLORS.muted : COLORS.text}
+            color={date >= todayStr() ? C.muted : C.text}
           />
         </TouchableOpacity>
       </View>
 
       {/* Workout Day Name */}
       <View style={styles.dayTitleRow}>
-        <MaterialCommunityIcons name="label-outline" size={18} color={COLORS.accent} />
+        <MaterialCommunityIcons name="label-outline" size={18} color={C.accent} />
         <TextInput
           style={styles.dayTitleInput}
           placeholder="Workout name (e.g. Leg Day, Push Pull)"
-          placeholderTextColor={COLORS.muted}
+          placeholderTextColor={C.muted}
           value={dayTitleDraft}
           onChangeText={setDayTitleDraft}
           onBlur={saveDayTitle}
@@ -394,15 +389,17 @@ export default function TodayScreen({
       {wk.exs.length > 0 && (
         <View style={styles.stats}>
           <StatCard
+            styles={styles}
             label="EXERCISES"
             value={stats.exercises}
-            color={COLORS.accent}
+            color={C.accent}
           />
-          <StatCard label="SETS" value={stats.sets} color={COLORS.orange} />
+          <StatCard styles={styles} label="SETS" value={stats.sets} color={C.orange} />
           <StatCard
+            styles={styles}
             label="VOLUME"
             value={`${stats.volume}kg`}
-            color={COLORS.green}
+            color={C.green}
           />
         </View>
       )}
@@ -414,6 +411,8 @@ export default function TodayScreen({
       >
         {wk.exs.length === 0 ? (
           <EmptyState
+            styles={styles}
+            C={C}
             onAddEx={() => setModal("addEx")}
             onAddPlan={() => setModal("plan")}
             onAddCopy={
@@ -427,8 +426,8 @@ export default function TodayScreen({
             {wk.exs.map((ex) => {
               const exerciseDef = exLib.find((e) => e.name === ex.name);
               const cat = exerciseDef?.category || "Custom";
-              const color = CATEGORY_COLORS[cat] || COLORS.accent;
-              const fields = getExerciseFields(exerciseDef || { name: ex.name, category: cat });
+              const color = CATEGORY_COLORS[cat] || C.accent;
+              const fields = getDisplayFieldsForExercise(exerciseDef, ex);
               const allW = allMaxW(ex.name);
               const maxSetW = ex.sets.length
                 ? Math.max(...ex.sets.map((s) => s.w || 0))
@@ -438,6 +437,8 @@ export default function TodayScreen({
 
               return (
                 <ExerciseCard
+                  styles={styles}
+                  C={C}
                   key={ex.name}
                   ex={ex}
                   cat={cat}
@@ -465,7 +466,7 @@ export default function TodayScreen({
                 <MaterialCommunityIcons
                   name="flash"
                   size={18}
-                  color={COLORS.accent}
+                  color={C.accent}
                 />
                 <Text style={styles.buttonTextOutline}>Load Plan</Text>
               </TouchableOpacity>
@@ -477,7 +478,7 @@ export default function TodayScreen({
                   <MaterialCommunityIcons
                     name="content-copy"
                     size={18}
-                    color={COLORS.accent}
+                    color={C.accent}
                   />
                   <Text style={styles.buttonTextOutline}>Copy</Text>
                 </TouchableOpacity>
@@ -500,6 +501,8 @@ export default function TodayScreen({
       {/* Modals */}
       {modal === "addSet" && (
         <AddSetModal
+          styles={styles}
+          C={C}
           exerciseName={addSetFor}
           exercise={exLib.find((e) => e.name === addSetFor)}
           fieldValues={setFieldValues}
@@ -513,6 +516,8 @@ export default function TodayScreen({
 
       {modal === "addEx" && (
         <AddExerciseModal
+          styles={styles}
+          C={C}
           search={exSearch}
           onSearchChange={setExSearch}
           exercises={exLib}
@@ -542,6 +547,8 @@ export default function TodayScreen({
 
       {modal === "plan" && (
         <PlanModal
+          styles={styles}
+          C={C}
           plans={WORKOUT_PLANS}
           onSelectPlan={addPlan}
           onClose={() => setModal(null)}
@@ -550,6 +557,8 @@ export default function TodayScreen({
 
       {modal === "copy" && (
         <CopyWorkoutModal
+          styles={styles}
+          C={C}
           previousDates={getPreviousWorkoutDates()}
           workouts={workouts}
           onSelectDate={copyWorkoutFrom}
@@ -559,6 +568,8 @@ export default function TodayScreen({
 
       {modal === "calendarLookup" && (
         <CalendarLookupModal
+          styles={styles}
+          C={C}
           currentDate={date}
           workouts={workouts}
           onSelectDate={(selectedDate) => {
@@ -572,7 +583,7 @@ export default function TodayScreen({
   );
 }
 
-function StatCard({ label, value, color }) {
+function StatCard({ label, value, color, styles }) {
   return (
     <View
       style={[styles.statCard, { borderLeftColor: color, borderLeftWidth: 3 }]}
@@ -592,8 +603,11 @@ function ExerciseCard({
   onAddSet,
   onRemoveEx,
   onRemoveSet,
+  styles,
+  C,
 }) {
-  const displayFields = fields?.length ? fields.slice(0, 2) : [];
+  const displayFields = fields?.length ? fields : [];
+
   return (
     <View style={styles.exerciseCard}>
       <View style={styles.exerciseHeader}>
@@ -618,29 +632,21 @@ function ExerciseCard({
             <MaterialCommunityIcons
               name="trophy"
               size={16}
-              color={COLORS.gold}
+              color={C.gold}
             />
           )}
           <TouchableOpacity onPress={onRemoveEx} style={styles.iconBtn}>
             <MaterialCommunityIcons
               name="close"
               size={18}
-              color={COLORS.muted}
+              color={C.muted}
             />
           </TouchableOpacity>
         </View>
       </View>
 
       {ex.sets.length > 0 && (
-        <View>
-          <View style={styles.setsHeader}>
-            <Text style={styles.setNumber}>#</Text>
-            {displayFields.map((f) => (
-              <Text key={f.key} style={styles.setLabel}>{f.label}</Text>
-            ))}
-            <Text style={styles.setLabel}>Time</Text>
-            <View style={{ width: 24 }} />
-          </View>
+        <View style={styles.setsContainer}>
           {ex.sets.map((set, i) => {
             const isTop =
               set.w > 0 &&
@@ -650,36 +656,44 @@ function ExerciseCard({
               <View
                 key={i}
                 style={[
-                  styles.setRow,
+                  styles.setBlock,
                   {
                     backgroundColor:
-                      i % 2 === 0 ? "transparent" : `${COLORS.muted}10`,
+                      i % 2 === 0 ? "transparent" : `${C.muted}10`,
                   },
                 ]}
               >
-                <Text style={styles.setNumber}>{i + 1}</Text>
-                {displayFields.map((f) => (
-                  <Text
-                    key={f.key}
-                    style={[
-                      styles.setWeight,
-                      { color: f.key === "w" && isTop ? COLORS.gold : COLORS.text },
-                    ]}
-                  >
-                    {formatSetFieldValue(f, set[f.key])}
-                  </Text>
-                ))}
-                <Text style={styles.setTime}>{set.t}</Text>
-                <TouchableOpacity
-                  onPress={() => onRemoveSet(i)}
-                  style={[styles.iconBtn, { opacity: 0.5 }]}
-                >
-                  <MaterialCommunityIcons
-                    name="trash-can"
-                    size={14}
-                    color={COLORS.muted}
-                  />
-                </TouchableOpacity>
+                <View style={styles.setBlockHeader}>
+                  <Text style={styles.setNumber}>Set {i + 1}</Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Text style={styles.setTime}>{set.t}</Text>
+                    <TouchableOpacity
+                      onPress={() => onRemoveSet(i)}
+                      style={[styles.iconBtn, { opacity: 0.5 }]}
+                    >
+                      <MaterialCommunityIcons
+                        name="trash-can"
+                        size={14}
+                        color={C.muted}
+                      />
+                    </TouchableOpacity>
+                  </View>
+                </View>
+                <View style={styles.setFieldsGrid}>
+                  {displayFields.map((f) => (
+                    <View key={f.key} style={styles.setFieldItem}>
+                      <Text style={styles.setFieldLabel}>{f.label}</Text>
+                      <Text
+                        style={[
+                          styles.setFieldValue,
+                          { color: f.key === "w" && isTop ? C.gold : C.text },
+                        ]}
+                      >
+                        {formatSetFieldValue(f, set[f.key])}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
               </View>
             );
           })}
@@ -697,13 +711,13 @@ function ExerciseCard({
   );
 }
 
-function EmptyState({ onAddEx, onAddPlan, onAddCopy }) {
+function EmptyState({ onAddEx, onAddPlan, onAddCopy, styles, C }) {
   return (
     <View style={styles.emptyState}>
       <MaterialCommunityIcons
         name="dumbbell"
         size={60}
-        color={`${COLORS.muted}40`}
+        color={`${C.muted}40`}
       />
       <Text style={styles.emptyTitle}>Workout Log Empty</Text>
       <Text style={styles.emptySubtitle}>
@@ -721,7 +735,7 @@ function EmptyState({ onAddEx, onAddPlan, onAddCopy }) {
           style={[styles.button, styles.buttonOutline]}
           onPress={onAddEx}
         >
-          <MaterialCommunityIcons name="plus" size={16} color={COLORS.accent} />
+          <MaterialCommunityIcons name="plus" size={16} color={C.accent} />
           <Text style={styles.buttonTextOutline}>Add Exercise</Text>
         </TouchableOpacity>
         {onAddCopy && (
@@ -729,7 +743,7 @@ function EmptyState({ onAddEx, onAddPlan, onAddCopy }) {
             style={[styles.button, styles.buttonOutline]}
             onPress={onAddCopy}
           >
-            <MaterialCommunityIcons name="content-copy" size={16} color={COLORS.accent} />
+            <MaterialCommunityIcons name="content-copy" size={16} color={C.accent} />
             <Text style={styles.buttonTextOutline}>Copy Previous Workout</Text>
           </TouchableOpacity>
         )}
@@ -745,6 +759,8 @@ function AddSetModal({
   onFieldChange,
   onSave,
   onClose,
+  styles,
+  C,
 }) {
   const fields = getExerciseFields(exercise || { name: exerciseName, category: "Custom" });
   return (
@@ -757,7 +773,7 @@ function AddSetModal({
               <MaterialCommunityIcons
                 name="close"
                 size={24}
-                color={COLORS.muted}
+                color={C.muted}
               />
             </TouchableOpacity>
           </View>
@@ -802,6 +818,8 @@ function AddExerciseModal({
   onSelectEx,
   onClose,
   onAddCustom,
+  styles,
+  C,
 }) {
   return (
     <Modal transparent animationType="slide" visible>
@@ -813,7 +831,7 @@ function AddExerciseModal({
               <MaterialCommunityIcons
                 name="close"
                 size={24}
-                color={COLORS.muted}
+                color={C.muted}
               />
             </TouchableOpacity>
           </View>
@@ -822,12 +840,12 @@ function AddExerciseModal({
             <MaterialCommunityIcons
               name="magnify"
               size={18}
-              color={COLORS.muted}
+              color={C.muted}
             />
             <TextInput
               style={styles.searchInput}
               placeholder="Search exercises..."
-              placeholderTextColor={COLORS.muted}
+              placeholderTextColor={C.muted}
               value={search}
               onChangeText={onSearchChange}
               autoFocus
@@ -843,7 +861,7 @@ function AddExerciseModal({
                   <Text
                     style={[
                       styles.categoryTitle,
-                      { color: CATEGORY_COLORS[cat] || COLORS.accent },
+                      { color: CATEGORY_COLORS[cat] || C.accent },
                     ]}
                   >
                     {cat}
@@ -869,7 +887,7 @@ function AddExerciseModal({
             <MaterialCommunityIcons
               name="plus"
               size={16}
-              color={COLORS.accent}
+              color={C.accent}
             />
             <Text style={styles.buttonTextOutline}>Create Custom</Text>
           </TouchableOpacity>
@@ -879,7 +897,7 @@ function AddExerciseModal({
   );
 }
 
-function PlanModal({ plans, onSelectPlan, onClose }) {
+function PlanModal({ plans, onSelectPlan, onClose, styles, C }) {
   return (
     <Modal transparent animationType="slide" visible>
       <View style={styles.modalOverlay}>
@@ -890,7 +908,7 @@ function PlanModal({ plans, onSelectPlan, onClose }) {
               <MaterialCommunityIcons
                 name="close"
                 size={24}
-                color={COLORS.muted}
+                color={C.muted}
               />
             </TouchableOpacity>
           </View>
@@ -919,7 +937,7 @@ function PlanModal({ plans, onSelectPlan, onClose }) {
   );
 }
 
-function CopyWorkoutModal({ previousDates, workouts, onSelectDate, onClose }) {
+function CopyWorkoutModal({ previousDates, workouts, onSelectDate, onClose, styles, C }) {
   return (
     <Modal transparent animationType="slide" visible>
       <View style={styles.modalOverlay}>
@@ -930,7 +948,7 @@ function CopyWorkoutModal({ previousDates, workouts, onSelectDate, onClose }) {
               <MaterialCommunityIcons
                 name="close"
                 size={24}
-                color={COLORS.muted}
+                color={C.muted}
               />
             </TouchableOpacity>
           </View>
@@ -965,7 +983,7 @@ function CopyWorkoutModal({ previousDates, workouts, onSelectDate, onClose }) {
                   <MaterialCommunityIcons
                     name="content-copy"
                     size={18}
-                    color={COLORS.accent}
+                    color={C.accent}
                   />
                 </TouchableOpacity>
               );
@@ -982,6 +1000,8 @@ function CalendarLookupModal({
   workouts,
   onSelectDate,
   onClose,
+  styles,
+  C,
 }) {
   const [lookupMonth, setLookupMonth] = useState(() => {
     return new Date(currentDate + "T12:00");
@@ -1035,25 +1055,25 @@ function CalendarLookupModal({
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>LOOKUP WORKOUT</Text>
             <TouchableOpacity onPress={onClose}>
-              <MaterialCommunityIcons name="close" size={22} color={COLORS.muted} />
+              <MaterialCommunityIcons name="close" size={22} color={C.muted} />
             </TouchableOpacity>
           </View>
 
           {/* Month Navigation */}
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <TouchableOpacity style={{ padding: 6 }} onPress={() => changeMonth(-1)}>
-              <MaterialCommunityIcons name="chevron-left" size={24} color={COLORS.text} />
+              <MaterialCommunityIcons name="chevron-left" size={24} color={C.text} />
             </TouchableOpacity>
-            <Text style={{ color: COLORS.text, fontSize: 14, fontWeight: "700" }}>{monthLabel}</Text>
+            <Text style={{ color: C.text, fontSize: 14, fontWeight: "700" }}>{monthLabel}</Text>
             <TouchableOpacity style={{ padding: 6, opacity: isNextDisabled ? 0.3 : 1 }} onPress={() => !isNextDisabled && changeMonth(1)}>
-              <MaterialCommunityIcons name="chevron-right" size={24} color={isNextDisabled ? COLORS.muted : COLORS.text} />
+              <MaterialCommunityIcons name="chevron-right" size={24} color={isNextDisabled ? C.muted : C.text} />
             </TouchableOpacity>
           </View>
 
           {/* Weekday Labels */}
           <View style={{ flexDirection: "row", marginBottom: 8 }}>
             {["S", "M", "T", "W", "T", "F", "S"].map((w, i) => (
-              <Text key={i} style={{ width: `${100 / 7}%`, textAlign: "center", color: COLORS.muted, fontSize: 10, fontWeight: "700" }}>{w}</Text>
+              <Text key={i} style={{ width: `${100 / 7}%`, textAlign: "center", color: C.muted, fontSize: 10, fontWeight: "700" }}>{w}</Text>
             ))}
           </View>
 
@@ -1078,9 +1098,9 @@ function CalendarLookupModal({
                       borderWidth: 1,
                       borderColor: "transparent",
                     },
-                    cell.isSelected && { backgroundColor: COLORS.accent, borderColor: COLORS.accent },
-                    !cell.isSelected && cell.isToday && { borderColor: COLORS.gold },
-                    !cell.isSelected && cell.hasWorkout && { backgroundColor: `${COLORS.accent}15`, borderColor: `${COLORS.accent}40` },
+                    cell.isSelected && { backgroundColor: C.accent, borderColor: C.accent },
+                    !cell.isSelected && cell.isToday && { borderColor: C.gold },
+                    !cell.isSelected && cell.hasWorkout && { backgroundColor: `${C.accent}15`, borderColor: `${C.accent}40` },
                   ]}
                   onPress={() => {
                     if (!isFuture) {
@@ -1092,17 +1112,17 @@ function CalendarLookupModal({
                 >
                   <Text
                     style={[
-                      { color: COLORS.muted, fontSize: 12, fontWeight: "600" },
-                      isFuture && { color: `${COLORS.muted}40` },
+                      { color: C.muted, fontSize: 12, fontWeight: "600" },
+                      isFuture && { color: `${C.muted}40` },
                       cell.isSelected && { color: "#000", fontWeight: "800" },
-                      !cell.isSelected && (cell.hasWorkout || cell.isToday) && { color: COLORS.text, fontWeight: "700" },
-                      !cell.isSelected && cell.isToday && { color: COLORS.gold },
+                      !cell.isSelected && (cell.hasWorkout || cell.isToday) && { color: C.text, fontWeight: "700" },
+                      !cell.isSelected && cell.isToday && { color: C.gold },
                     ]}
                   >
                     {cell.day}
                   </Text>
                   {cell.hasWorkout && !cell.isSelected && (
-                    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: COLORS.accent, marginTop: 2 }} />
+                    <View style={{ width: 4, height: 4, borderRadius: 2, backgroundColor: C.accent, marginTop: 2 }} />
                   )}
                 </TouchableOpacity>
               );
@@ -1112,9 +1132,9 @@ function CalendarLookupModal({
           {/* Quick jump to Today */}
           <TouchableOpacity
             style={{
-              backgroundColor: COLORS.surface,
+              backgroundColor: C.surface,
               borderWidth: 1,
-              borderColor: COLORS.border,
+              borderColor: C.border,
               borderRadius: 8,
               paddingVertical: 10,
               alignItems: "center",
@@ -1124,7 +1144,7 @@ function CalendarLookupModal({
               onSelectDate(todayStr());
             }}
           >
-            <Text style={{ color: COLORS.accent, fontWeight: "700", fontSize: 12 }}>JUMP TO TODAY</Text>
+            <Text style={{ color: C.accent, fontWeight: "700", fontSize: 12 }}>JUMP TO TODAY</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1132,20 +1152,20 @@ function CalendarLookupModal({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (C) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: C.bg,
   },
   centerContainer: {
     flex: 1,
-    backgroundColor: COLORS.bg,
+    backgroundColor: C.bg,
     justifyContent: "center",
     alignItems: "center",
     gap: 16,
   },
   loadingText: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 14,
   },
   header: {
@@ -1155,24 +1175,24 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     paddingTop: 8,
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.border,
   },
   headerTitle: {
     fontSize: 16,
     fontWeight: "700",
-    color: COLORS.text,
+    color: C.text,
     letterSpacing: 1,
   },
   headerDate: {
     fontSize: 12,
-    color: COLORS.muted,
+    color: C.muted,
     marginTop: 2,
   },
   headerDayTitle: {
     fontSize: 13,
-    color: COLORS.text,
+    color: C.text,
     fontWeight: "700",
     marginTop: 2,
   },
@@ -1190,9 +1210,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.border,
   },
   dateBtn: {
     padding: 8,
@@ -1204,24 +1224,24 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderRadius: 8,
   },
   dateText: {
-    color: COLORS.text,
+    color: C.text,
     fontSize: 13,
     fontWeight: "600",
   },
   todayBadge: {
-    backgroundColor: `${COLORS.accent}20`,
+    backgroundColor: `${C.accent}20`,
     borderWidth: 1,
-    borderColor: COLORS.accent,
+    borderColor: C.accent,
     borderRadius: 8,
     paddingHorizontal: 10,
     paddingVertical: 6,
   },
   todayBadgeText: {
-    color: COLORS.accent,
+    color: C.accent,
     fontSize: 11,
     fontWeight: "700",
   },
@@ -1231,13 +1251,13 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 16,
     paddingVertical: 10,
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.border,
   },
   dayTitleInput: {
     flex: 1,
-    color: COLORS.text,
+    color: C.text,
     fontSize: 15,
     fontWeight: "700",
     paddingVertical: 4,
@@ -1250,11 +1270,11 @@ const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderRadius: 10,
     padding: 12,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
   },
   statValue: {
     fontSize: 18,
@@ -1263,7 +1283,7 @@ const styles = StyleSheet.create({
   },
   statLabel: {
     fontSize: 9,
-    color: COLORS.muted,
+    color: C.muted,
     fontWeight: "700",
     marginTop: 4,
     letterSpacing: 1,
@@ -1274,11 +1294,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   exerciseCard: {
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderRadius: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     overflow: "hidden",
   },
   exerciseHeader: {
@@ -1287,7 +1307,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     padding: 12,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.border,
   },
   exColorBar: {
     width: 3,
@@ -1297,7 +1317,7 @@ const styles = StyleSheet.create({
   exerciseName: {
     fontSize: 15,
     fontWeight: "700",
-    color: COLORS.text,
+    color: C.text,
   },
   exerciseCategory: {
     fontSize: 10,
@@ -1308,23 +1328,65 @@ const styles = StyleSheet.create({
   iconBtn: {
     padding: 6,
   },
+  setsContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 4,
+  },
+  setBlock: {
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    marginBottom: 4,
+  },
+  setBlockHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 6,
+  },
+  setFieldsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  setFieldItem: {
+    minWidth: "30%",
+    flexGrow: 1,
+    backgroundColor: C.surface,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderWidth: 1,
+    borderColor: C.border,
+  },
+  setFieldLabel: {
+    color: C.muted,
+    fontSize: 9,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    marginBottom: 2,
+  },
+  setFieldValue: {
+    fontSize: 14,
+    fontWeight: "700",
+  },
   setsHeader: {
     flexDirection: "row",
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    borderBottomColor: C.border,
     alignItems: "center",
   },
   setNumber: {
     width: 28,
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 10,
     fontWeight: "700",
   },
   setLabel: {
     flex: 1,
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 10,
     fontWeight: "700",
   },
@@ -1343,12 +1405,12 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 14,
     fontWeight: "700",
-    color: COLORS.text,
+    color: C.text,
   },
   setTime: {
     flex: 1,
     fontSize: 10,
-    color: COLORS.muted,
+    color: C.muted,
     fontFamily: "monospace",
   },
   addSetBtn: {
@@ -1383,12 +1445,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   buttonPrimary: {
-    backgroundColor: COLORS.accent,
+    backgroundColor: C.accent,
   },
   buttonOutline: {
     borderWidth: 1,
-    borderColor: COLORS.border,
-    backgroundColor: COLORS.surface,
+    borderColor: C.border,
+    backgroundColor: C.surface,
   },
   buttonTextPrimary: {
     color: "#000",
@@ -1397,7 +1459,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
   buttonTextOutline: {
-    color: COLORS.accent,
+    color: C.accent,
     fontSize: 13,
     fontWeight: "800",
     letterSpacing: 0.5,
@@ -1411,12 +1473,12 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: "700",
-    color: COLORS.text,
+    color: C.text,
     marginTop: 14,
   },
   emptySubtitle: {
     fontSize: 13,
-    color: COLORS.muted,
+    color: C.muted,
     marginTop: 6,
   },
   dateDisplayWeb: {
@@ -1425,7 +1487,7 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderRadius: 8,
   },
   modalOverlay: {
@@ -1440,19 +1502,19 @@ const styles = StyleSheet.create({
     })
   },
   modalContent: {
-    backgroundColor: COLORS.card,
+    backgroundColor: C.card,
     borderRadius: 20,
     padding: 20,
     maxHeight: "80%",
     borderTopWidth: 1,
-    borderTopColor: COLORS.border,
+    borderTopColor: C.border,
     ...Platform.select({
       web: {
         width: "90%",
         maxWidth: 500,
         borderRadius: 16,
         borderWidth: 1,
-        borderColor: COLORS.border,
+        borderColor: C.border,
       }
     })
   },
@@ -1465,24 +1527,24 @@ const styles = StyleSheet.create({
   modalTitle: {
     fontSize: 18,
     fontWeight: "900",
-    color: COLORS.text,
+    color: C.text,
     letterSpacing: 1,
   },
   searchBox: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: C.inputBg,
     borderRadius: 10,
     paddingHorizontal: 12,
     marginBottom: 14,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
   },
   searchInput: {
     flex: 1,
     paddingVertical: 10,
     paddingHorizontal: 8,
-    color: COLORS.text,
+    color: C.text,
     fontSize: 13,
   },
   categoryTitle: {
@@ -1499,30 +1561,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     marginBottom: 6,
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
   },
   exListItemText: {
-    color: COLORS.text,
+    color: C.text,
     fontSize: 13,
   },
   inputLabel: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 11,
     fontWeight: "700",
     letterSpacing: 1,
     marginBottom: 8,
   },
   input: {
-    backgroundColor: COLORS.inputBg,
+    backgroundColor: C.inputBg,
     borderRadius: 10,
     padding: 12,
-    color: COLORS.text,
+    color: C.text,
     fontSize: 16,
     fontWeight: "700",
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
   },
   inputGrid: {
     flexDirection: "row",
@@ -1538,64 +1600,64 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     marginRight: 8,
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
   },
   categoryBtnText: {
-    color: COLORS.text,
+    color: C.text,
     fontSize: 12,
     fontWeight: "600",
   },
   planItem: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     borderRadius: 10,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
   },
   planName: {
-    color: COLORS.text,
+    color: C.text,
     fontSize: 14,
     fontWeight: "700",
     marginBottom: 4,
   },
   planExercises: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 11,
   },
   modalDescription: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 12,
     marginBottom: 14,
     fontWeight: "500",
   },
   copyItem: {
-    backgroundColor: COLORS.surface,
+    backgroundColor: C.surface,
     borderRadius: 10,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: COLORS.border,
+    borderColor: C.border,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
   copyDate: {
-    color: COLORS.text,
+    color: C.text,
     fontSize: 14,
     fontWeight: "700",
     marginBottom: 2,
   },
   copyDayTitle: {
-    color: COLORS.accent,
+    color: C.accent,
     fontSize: 12,
     fontWeight: "700",
     marginBottom: 4,
   },
   copyDetails: {
-    color: COLORS.muted,
+    color: C.muted,
     fontSize: 11,
   },
 });
