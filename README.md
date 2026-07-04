@@ -1,6 +1,13 @@
 # 🏋️ GYM TRACKER - Cross-Platform Fitness App
 
-Complete workout tracking app with **Android + iOS + Web** support, **Google Authentication**, **Firebase Cloud Sync**, and **Offline Mode**.
+Complete workout tracking app with **Android + iOS + Web** support, **Google Authentication**, **Firebase Cloud Sync**, **AI Coach**, and **Offline Mode**.
+
+## 📲 Download Android APK
+
+[![Download APK](https://img.shields.io/badge/Download-APK%20v1.2.0-green?style=for-the-badge)](https://github.com/HarshGupta-1708/GymTracker/releases/latest)
+
+> After installing: **Sign in with Google** — your workout history syncs from the cloud.  
+> Build instructions: [docs/APK_BUILD_AND_RELEASE.md](docs/APK_BUILD_AND_RELEASE.md)
 
 ---
 
