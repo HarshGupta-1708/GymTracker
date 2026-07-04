@@ -28,6 +28,7 @@ import HistoryScreen from "./screens/HistoryScreen";
 import LoginScreen from "./screens/LoginScreen";
 import ProgressScreen from "./screens/ProgressScreen";
 import TodayScreen from "./screens/TodayScreen";
+import CoachScreen from "./screens/CoachScreen";
 
 import {
     deleteWorkout,
@@ -670,6 +671,27 @@ function MainApp({
                   tabBarIcon: ({ color, size }) => (
                     <MaterialCommunityIcons
                       name="dumbbell"
+                      size={size}
+                      color={color}
+                    />
+                  ),
+                }}
+              />
+              <Tab.Screen
+                name="Coach"
+                children={() => (
+                  <SafeAreaView
+                    style={{ flex: 1, backgroundColor: C.bg }}
+                    edges={["top"]}
+                  >
+                    <CoachScreen workouts={workouts} exercises={exercises} />
+                  </SafeAreaView>
+                )}
+                options={{
+                  tabBarLabel: "Coach",
+                  tabBarIcon: ({ color, size }) => (
+                    <MaterialCommunityIcons
+                      name="robot"
                       size={size}
                       color={color}
                     />

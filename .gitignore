@@ -31,7 +31,10 @@ yarn-error.*
 *.pem
 
 # local env files
+.env
 .env*.local
+coach-api/.env
+coach-api/node_modules/
 
 # typescript
 *.tsbuildinfo

@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: gymtracker-coach-api
+    runtime: node
+    rootDir: coach-api
+    buildCommand: npm install
+    startCommand: npm start
+    plan: free
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: GROQ_MODEL
+        value: llama-3.1-8b-instant
+      - key: COACH_DAILY_LIMIT
+        value: 20

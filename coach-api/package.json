@@ -1,0 +1,19 @@
+{
+  "name": "gymtracker-coach-api",
+  "version": "1.0.0",
+  "description": "Free RAG coach API for GymTracker (Groq + Render)",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "firebase-admin": "^13.0.2"
+  }
+}
