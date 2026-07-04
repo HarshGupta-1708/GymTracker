@@ -58,36 +58,34 @@ Profile **`production`** → produces **AAB** (Play Store), not a direct phone A
 
 ### Fix EAS permission error (`Entity not authorized`)
 
-This means your Expo login cannot access project `66c0e0bf-...`.
+The old project ID `66c0e0bf-...` is **not owned by your Expo account** (likely created under a different login).  
+**Solution:** create a **new** Expo project under `harshgupta1708`:
 
-**Step 1 — Check who you are logged in as:**
-```bash
-npx eas-cli whoami
-```
-Should show: `harshgupta1708`
-
-**Step 2 — Re-link the project:**
 ```bash
 cd /Users/harshgupta1708/Desktop/GymTracker
-npx eas-cli init --id 66c0e0bf-86f3-401d-9925-86dfbec070fa
-```
-
-**Step 3 — If Step 2 fails**, the project may be under a **different Expo email**:
-1. Open **https://expo.dev** in browser
-2. Check which account owns **gym-tracker** (top-right avatar)
-3. Logout CLI and login with that exact account:
-```bash
-npx eas-cli logout
-npx eas-cli login
-npx eas-cli init --id 66c0e0bf-86f3-401d-9925-86dfbec070fa
-```
-
-**Step 4 — If project is lost**, create a **new** Expo project (new keystore — may need uninstall old app):
-```bash
+git pull origin master
 npx eas-cli init
-# creates new projectId in app.json — commit that change
+```
+
+When prompted:
+- **Create a new project** (not link to old ID)
+- Name: `gym-tracker` (or any name)
+
+This writes a **new `projectId`** into `app.json`. Then:
+
+```bash
 npm run build:apk
 ```
+
+**Note:** New keystore = if phone says "App not installed", uninstall old APK first, then install new one. **Google login keeps your history** in the cloud.
+
+After first build, add **new SHA-1** for Google Sign-In:
+
+```bash
+npx eas credentials -p android
+```
+
+Copy SHA-1 → Google Cloud Console → Android OAuth client → add fingerprint.
 
 Get EAS SHA-1:
 

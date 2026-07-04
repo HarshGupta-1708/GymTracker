@@ -51,9 +51,7 @@
     ],
     "extra": {
       "coachApiUrl": "https://gymtracker-coach-api.onrender.com",
-      "eas": {
-        "projectId": "66c0e0bf-86f3-401d-9925-86dfbec070fa"
-      }
+      "eas": {}
     }
   }
 }
