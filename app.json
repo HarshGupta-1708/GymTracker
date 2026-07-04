@@ -2,7 +2,7 @@
   "expo": {
     "name": "GYM TRACKER",
     "slug": "gym-tracker",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "gymtracker",
@@ -36,7 +36,7 @@
           ]
         }
       ],
-      "versionCode": 5
+      "versionCode": 6
     },
     "web": {
       "output": "single",
@@ -51,7 +51,11 @@
     ],
     "extra": {
       "coachApiUrl": "https://gymtracker-coach-api.onrender.com",
-      "eas": {}
+      "googleWebClientId": "1013071433374-5nt3jtkhhok3c1u37k6qrlsna32doa8j.apps.googleusercontent.com",
+      "googleAndroidClientId": "1013071433374-tbuplbi4egicmjsogurlfv9elkhpp1s4.apps.googleusercontent.com",
+      "eas": {
+        "projectId": "4ee12947-5aac-446c-b5e9-b65a8ff60249"
+      }
     }
   }
 }

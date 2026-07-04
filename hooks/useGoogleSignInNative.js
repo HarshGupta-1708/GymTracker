@@ -2,6 +2,10 @@ import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import { useCallback, useEffect, useState } from "react";
 import { Alert, TurboModuleRegistry } from "react-native";
 import { auth } from "../config/firebaseConfig";
+import {
+  GOOGLE_IOS_CLIENT_ID,
+  GOOGLE_WEB_CLIENT_ID,
+} from "../constants/googleAuth";
 
 function hasNativeGoogleSignIn() {
   try {
@@ -32,11 +36,11 @@ export function useGoogleSignInNative({ enabled = true } = {}) {
     if (!mod?.GoogleSignin) return;
     try {
       const config = {
-        webClientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
+        webClientId: GOOGLE_WEB_CLIENT_ID,
         offlineAccess: true,
       };
-      if (process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID) {
-        config.iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
+      if (GOOGLE_IOS_CLIENT_ID) {
+        config.iosClientId = GOOGLE_IOS_CLIENT_ID;
       }
       mod.GoogleSignin.configure(config);
       setNativeReady(true);

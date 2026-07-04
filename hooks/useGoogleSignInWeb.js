@@ -3,6 +3,11 @@ import * as WebBrowser from "expo-web-browser";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
 import { useCallback, useEffect, useState } from "react";
 import { auth } from "../config/firebaseConfig";
+import {
+  GOOGLE_ANDROID_CLIENT_ID,
+  GOOGLE_IOS_CLIENT_ID,
+  GOOGLE_WEB_CLIENT_ID,
+} from "../constants/googleAuth";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -11,9 +16,9 @@ export function useGoogleSignInWeb({ enabled = true } = {}) {
   const [error, setError] = useState(null);
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: process.env.EXPO_PUBLIC_GOOGLE_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    clientId: GOOGLE_WEB_CLIENT_ID,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID,
+    iosClientId: GOOGLE_IOS_CLIENT_ID,
   });
 
   const signIn = useCallback(async () => {
