@@ -1,11 +1,12 @@
 import React, { useMemo, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Modal, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Modal, Platform, TextInput } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { COLORS, prettyDate, todayStr } from '../constants/data';
-import { deleteWorkout } from '../utils/firestore';
+import { deleteWorkout, saveWorkout } from '../utils/firestore';
 
-export default function HistoryScreen({ workouts, loading }) {
+export default function HistoryScreen({ workouts, loading, onWorkoutsChange }) {
   const [selectedDate, setSelectedDate] = useState(null);
+  const [dayTitleEdit, setDayTitleEdit] = useState('');
 
   const workoutDates = Object.keys(workouts)
     .filter(d => workouts[d]?.exs?.length)
@@ -15,6 +16,20 @@ export default function HistoryScreen({ workouts, loading }) {
   const totalWorkouts = workoutDates.length;
   const selectedWorkout = selectedDate ? workouts[selectedDate] : null;
   const [deleting, setDeleting] = useState(false);
+
+  const openDate = (dateStr) => {
+    setSelectedDate(dateStr);
+    setDayTitleEdit(workouts[dateStr]?.dayTitle || '');
+  };
+
+  const saveDayTitle = async () => {
+    if (!selectedDate || !selectedWorkout) return;
+    const updated = { ...selectedWorkout, dayTitle: dayTitleEdit.trim() };
+    await saveWorkout(selectedDate, updated);
+    if (typeof onWorkoutsChange === 'function') {
+      onWorkoutsChange({ ...workouts, [selectedDate]: updated });
+    }
+  };
   const handleDeleteSelectedDate = async () => {
     if (!selectedDate || deleting) return;
     try {
@@ -117,7 +132,7 @@ export default function HistoryScreen({ workouts, loading }) {
                           cell.hasWorkout && styles.dayCellActive,
                           cell.isToday && styles.dayCellToday,
                         ]}
-                        onPress={() => cell.hasWorkout && setSelectedDate(cell.dateStr)}
+                        onPress={() => cell.hasWorkout && openDate(cell.dateStr)}
                         activeOpacity={cell.hasWorkout ? 0.8 : 1}
                       >
                         <Text
@@ -146,7 +161,12 @@ export default function HistoryScreen({ workouts, loading }) {
         <View style={styles.modalOverlay}>
           <View style={styles.modalCard}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>{selectedDate ? prettyDate(selectedDate) : ''}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.modalTitle}>{selectedDate ? prettyDate(selectedDate) : ''}</Text>
+                {selectedWorkout?.dayTitle ? (
+                  <Text style={styles.modalDayTitle}>{selectedWorkout.dayTitle}</Text>
+                ) : null}
+              </View>
               <View style={{ flexDirection: 'row', gap: 10 }}>
                 <TouchableOpacity onPress={handleDeleteSelectedDate} disabled={deleting}>
                   <MaterialCommunityIcons name="trash-can-outline" size={20} color={COLORS.error} />
@@ -158,6 +178,18 @@ export default function HistoryScreen({ workouts, loading }) {
             </View>
             {selectedWorkout && (
               <ScrollView>
+                <View style={styles.dayTitleEditRow}>
+                  <MaterialCommunityIcons name="label-outline" size={16} color={COLORS.accent} />
+                  <TextInput
+                    style={styles.dayTitleEditInput}
+                    placeholder="Workout name (Leg Day, Push Pull...)"
+                    placeholderTextColor={COLORS.muted}
+                    value={dayTitleEdit}
+                    onChangeText={setDayTitleEdit}
+                    onBlur={saveDayTitle}
+                    onSubmitEditing={saveDayTitle}
+                  />
+                </View>
                 {selectedWorkout.exs.map((ex, idx) => (
                   <View key={`${ex.name}-${idx}`} style={{ marginBottom: 10 }}>
                     <Text style={styles.detailExName}>{ex.name}</Text>
@@ -370,6 +402,30 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     color: COLORS.text,
+  },
+  modalDayTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: COLORS.accent,
+    marginTop: 4,
+  },
+  dayTitleEditRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 14,
+    backgroundColor: COLORS.surface,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  dayTitleEditInput: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 13,
+    fontWeight: '600',
   },
   detailExName: {
     color: COLORS.accent,

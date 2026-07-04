@@ -1,22 +1,20 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, SectionList, Modal, Platform
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Platform
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import CustomExerciseForm from '../components/CustomExerciseForm';
 import { COLORS, CATEGORIES, CATEGORY_COLORS, PRESET_EXERCISES } from '../constants/data';
 
 export default function ExercisesScreen({ exercises = PRESET_EXERCISES, onAddToday, onAddCustomExercise, loading }) {
   const handleAddToday = (name) => {
     if (typeof onAddToday === 'function') {
       onAddToday(name);
-      return;
     }
   };
 
   const [search, setSearch] = useState('');
-  const [showCustomModal, setShowCustomModal] = useState(false);
-  const [customName, setCustomName] = useState('');
-  const [customCategory, setCustomCategory] = useState('Custom');
+  const [showCustomForm, setShowCustomForm] = useState(false);
 
   const filteredExercises = useMemo(() => {
     return exercises.filter(e =>
@@ -24,13 +22,25 @@ export default function ExercisesScreen({ exercises = PRESET_EXERCISES, onAddTod
     );
   }, [exercises, search]);
 
+  const categoryList = useMemo(() => {
+    const fromLib = [...new Set(filteredExercises.map((e) => e.category).filter(Boolean))];
+    return [...new Set([...CATEGORIES, ...fromLib])];
+  }, [filteredExercises]);
+
   const grouped = useMemo(() => {
     const groups = {};
-    CATEGORIES.forEach(cat => {
+    categoryList.forEach(cat => {
       groups[cat] = filteredExercises.filter(e => e.category === cat);
     });
     return groups;
-  }, [filteredExercises]);
+  }, [filteredExercises, categoryList]);
+
+  const handleSaveCustom = async ({ name, category, fields }) => {
+    if (typeof onAddCustomExercise === 'function') {
+      await onAddCustomExercise(name, category, fields);
+    }
+    setShowCustomForm(false);
+  };
 
   if (loading) {
     return (
@@ -43,7 +53,6 @@ export default function ExercisesScreen({ exercises = PRESET_EXERCISES, onAddTod
 
   return (
     <View style={styles.container}>
-      {/* Header */}
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>EXERCISE LIBRARY</Text>
@@ -51,13 +60,12 @@ export default function ExercisesScreen({ exercises = PRESET_EXERCISES, onAddTod
         </View>
         <TouchableOpacity
           style={styles.addButton}
-          onPress={() => setShowCustomModal(true)}
+          onPress={() => setShowCustomForm(true)}
         >
           <MaterialCommunityIcons name="plus" size={20} color="#000" />
         </TouchableOpacity>
       </View>
 
-      {/* Search */}
       <View style={styles.searchContainer}>
         <MaterialCommunityIcons name="magnify" size={18} color={COLORS.muted} />
         <TextInput
@@ -74,17 +82,16 @@ export default function ExercisesScreen({ exercises = PRESET_EXERCISES, onAddTod
         )}
       </View>
 
-      {/* Exercises by Category */}
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {CATEGORIES.map(category => {
+        {categoryList.map(category => {
           const exs = grouped[category];
           if (!exs.length) return null;
 
           return (
             <View key={category} style={styles.categorySection}>
               <View style={styles.categoryHeader}>
-                <View style={[styles.categoryBar, { backgroundColor: CATEGORY_COLORS[category] }]} />
-                <Text style={[styles.categoryTitle, { color: CATEGORY_COLORS[category] }]}>
+                <View style={[styles.categoryBar, { backgroundColor: CATEGORY_COLORS[category] || COLORS.accent }]} />
+                <Text style={[styles.categoryTitle, { color: CATEGORY_COLORS[category] || COLORS.accent }]}>
                   {category}
                 </Text>
                 <Text style={styles.categoryCount}>{exs.length}</Text>
@@ -100,19 +107,26 @@ export default function ExercisesScreen({ exercises = PRESET_EXERCISES, onAddTod
                     ]}
                     onPress={() => handleAddToday(ex.name)}
                   >
-                    <Text style={styles.exerciseName}>{ex.name}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.exerciseName}>{ex.name}</Text>
+                      {ex.fields?.length ? (
+                        <Text style={styles.fieldHint}>
+                          {ex.fields.map((f) => f.label).join(' • ')}
+                        </Text>
+                      ) : null}
+                    </View>
                     <View
                       style={[
                         styles.addExBtn,
-                        { backgroundColor: `${CATEGORY_COLORS[category]}15`, borderColor: CATEGORY_COLORS[category] }
+                        { backgroundColor: `${CATEGORY_COLORS[category] || COLORS.accent}15`, borderColor: CATEGORY_COLORS[category] || COLORS.accent }
                       ]}
                     >
                       <MaterialCommunityIcons
                         name="plus"
                         size={14}
-                        color={CATEGORY_COLORS[category]}
+                        color={CATEGORY_COLORS[category] || COLORS.accent}
                       />
-                      <Text style={[styles.addExBtnText, { color: CATEGORY_COLORS[category] }]}>
+                      <Text style={[styles.addExBtnText, { color: CATEGORY_COLORS[category] || COLORS.accent }]}>
                         ADD
                       </Text>
                     </View>
@@ -131,75 +145,13 @@ export default function ExercisesScreen({ exercises = PRESET_EXERCISES, onAddTod
         )}
       </ScrollView>
 
-      {/* Custom Exercise Modal */}
-      <Modal transparent animationType="slide" visible={showCustomModal}>
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>ADD CUSTOM EXERCISE</Text>
-              <TouchableOpacity onPress={() => {
-                setShowCustomModal(false);
-                setCustomName('');
-                setCustomCategory('Custom');
-              }}>
-                <MaterialCommunityIcons name="close" size={24} color={COLORS.muted} />
-              </TouchableOpacity>
-            </View>
-
-            <Text style={styles.inputLabel}>EXERCISE NAME</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="e.g., Leg Extension"
-              placeholderTextColor={COLORS.muted}
-              value={customName}
-              onChangeText={setCustomName}
-            />
-
-            <Text style={[styles.inputLabel, { marginTop: 16 }]}>CATEGORY</Text>
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoryGrid}>
-              {CATEGORIES.map(cat => (
-                <TouchableOpacity
-                  key={cat}
-                  style={[
-                    styles.categoryBtn,
-                    customCategory === cat && {
-                      backgroundColor: CATEGORY_COLORS[cat],
-                      borderColor: CATEGORY_COLORS[cat],
-                    }
-                  ]}
-                  onPress={() => setCustomCategory(cat)}
-                >
-                  <Text
-                    style={[
-                      styles.categoryBtnText,
-                      customCategory === cat && { color: '#000', fontWeight: '700' }
-                    ]}
-                  >
-                    {cat}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-
-            <TouchableOpacity
-              style={[styles.button, styles.buttonPrimary]}
-              onPress={() => {
-                if (customName.trim()) {
-                  if (typeof onAddCustomExercise === 'function') {
-                    onAddCustomExercise(customName.trim(), customCategory);
-                  }
-                  setShowCustomModal(false);
-                  setCustomName('');
-                  setCustomCategory('Custom');
-                }
-              }}
-            >
-              <MaterialCommunityIcons name="plus" size={16} color="#000" />
-              <Text style={styles.buttonTextPrimary}>ADD EXERCISE</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
+      <CustomExerciseForm
+        visible={showCustomForm}
+        exercises={exercises}
+        title="ADD CUSTOM EXERCISE"
+        onClose={() => setShowCustomForm(false)}
+        onSave={handleSaveCustom}
+      />
     </View>
   );
 }
@@ -317,7 +269,11 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '500',
     color: COLORS.text,
-    flex: 1,
+  },
+  fieldHint: {
+    fontSize: 10,
+    color: COLORS.muted,
+    marginTop: 2,
   },
   addExBtn: {
     flexDirection: 'row',
@@ -342,95 +298,5 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     fontSize: 14,
     marginTop: 10,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.75)',
-    justifyContent: 'flex-end',
-    ...Platform.select({
-      web: {
-        justifyContent: 'center',
-        alignItems: 'center',
-      }
-    })
-  },
-  modalContent: {
-    backgroundColor: COLORS.card,
-    borderRadius: 20,
-    padding: 20,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    ...Platform.select({
-      web: {
-        width: '90%',
-        maxWidth: 500,
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: COLORS.border,
-      }
-    })
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 18,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: COLORS.text,
-    letterSpacing: 1,
-  },
-  inputLabel: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: COLORS.muted,
-    letterSpacing: 1,
-    marginBottom: 8,
-  },
-  input: {
-    backgroundColor: COLORS.inputBg,
-    borderRadius: 10,
-    padding: 12,
-    color: COLORS.text,
-    fontSize: 14,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-  },
-  categoryGrid: {
-    marginBottom: 16,
-  },
-  categoryBtn: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.border,
-    marginRight: 8,
-    backgroundColor: COLORS.surface,
-  },
-  categoryBtnText: {
-    color: COLORS.text,
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  button: {
-    flexDirection: 'row',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  buttonPrimary: {
-    backgroundColor: COLORS.accent,
-  },
-  buttonTextPrimary: {
-    color: '#000',
-    fontSize: 13,
-    fontWeight: '800',
-    letterSpacing: 0.5,
   },
 });

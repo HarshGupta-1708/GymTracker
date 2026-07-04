@@ -2,11 +2,11 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
+import Constants from "expo-constants";
 import { StatusBar } from "expo-status-bar";
 import { onAuthStateChanged, signOut } from "firebase/auth";
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
-    ActivityIndicator,
     Alert,
     LogBox,
     Text,
@@ -15,6 +15,8 @@ import {
 } from "react-native";
 import "react-native-get-random-values";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import AppSplash from "./components/AppSplash";
+import WhatsNewModal from "./components/WhatsNewModal";
 import { auth } from "./config/firebaseConfig";
 import { COLORS, PRESET_EXERCISES, todayStr } from "./constants/data";
 
@@ -26,20 +28,21 @@ import ProgressScreen from "./screens/ProgressScreen";
 import TodayScreen from "./screens/TodayScreen";
 
 import {
+    getWorkouts,
     listenExercises,
     listenWorkouts,
+    loadWorkoutLocal,
     saveExercisesLib,
     saveWorkout,
 } from "./utils/firestore";
 
-// Suppress warnings
 LogBox.ignoreLogs([
   "Non-serializable values were found in the navigation state",
 ]);
 
 const Tab = createBottomTabNavigator();
+const APP_VERSION = Constants.expoConfig?.version || "1.1.0";
 
-// Error Boundary Component for catching app crashes
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -124,17 +127,19 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [workouts, setWorkouts] = useState({});
   const [workoutsLoading, setWorkoutsLoading] = useState(true);
+  const [splashMessage, setSplashMessage] = useState("Loading GYM TRACKER...");
   const [exercises, setExercises] = useState(PRESET_EXERCISES);
+  const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [showRestoreHint, setShowRestoreHint] = useState(false);
 
   useEffect(() => {
-    // Check if there was a demo session stored locally
     AsyncStorage.getItem("gt_demo_session")
       .then((isDemo) => {
         if (isDemo === "true") {
           auth.isDemo = true;
           setUser({ uid: "demo-user", displayName: "Demo Athlete" });
           setLoading(false);
-          // Load local workouts
+          setSplashMessage("Loading your workouts...");
           AsyncStorage.getItem("gt_workouts_local_demo-user")
             .then((data) => {
               if (data) setWorkouts(JSON.parse(data));
@@ -159,22 +164,59 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    // Reset/cleanup workouts state when user signs out or shifts session
     if (!user) {
       setWorkouts({});
       setWorkoutsLoading(true);
       setExercises(PRESET_EXERCISES);
+      setShowRestoreHint(false);
     }
   }, [user]);
 
   useEffect(() => {
-    if (user && !auth.isDemo) {
-      const unsubscribe = listenWorkouts((data) => {
+    if (!user) return undefined;
+
+    if (auth.isDemo) return undefined;
+
+    let cancelled = false;
+
+    const bootstrapWorkouts = async () => {
+      setWorkoutsLoading(true);
+      setSplashMessage("Loading your workouts...");
+
+      const local = await loadWorkoutLocal();
+      const localEmpty = !local || Object.keys(local).length === 0;
+
+      if (!cancelled && !localEmpty) {
+        setWorkouts(local);
+      }
+
+      if (localEmpty) {
+        setSplashMessage("Restoring your workouts from cloud...");
+        setShowRestoreHint(true);
+        try {
+          const cloud = await getWorkouts();
+          if (!cancelled) setWorkouts(cloud);
+        } catch (err) {
+          console.error("Cloud restore error:", err);
+        }
+      }
+
+      if (!cancelled) setWorkoutsLoading(false);
+    };
+
+    bootstrapWorkouts();
+
+    const unsubscribe = listenWorkouts((data) => {
+      if (!cancelled) {
         setWorkouts(data);
         setWorkoutsLoading(false);
-      });
-      return unsubscribe;
-    }
+      }
+    });
+
+    return () => {
+      cancelled = true;
+      unsubscribe();
+    };
   }, [user]);
 
   useEffect(() => {
@@ -187,30 +229,41 @@ export default function App() {
         }
       });
       return unsubscribe;
-    } else if (user && auth.isDemo) {
-      // Try to load local exercises for guest mode
+    }
+    if (user && auth.isDemo) {
       AsyncStorage.getItem("gt_exercises_local_demo-user")
         .then((data) => {
-          if (data) {
-            setExercises(JSON.parse(data));
-          } else {
-            setExercises(PRESET_EXERCISES);
-          }
+          if (data) setExercises(JSON.parse(data));
+          else setExercises(PRESET_EXERCISES);
         })
-        .catch(() => {
-          setExercises(PRESET_EXERCISES);
-        });
+        .catch(() => setExercises(PRESET_EXERCISES));
     }
+    return undefined;
   }, [user]);
 
-  const addCustomExercise = async (name, category) => {
-    const newEx = { name, category };
+  useEffect(() => {
+    if (!user || workoutsLoading) return;
+    AsyncStorage.getItem("gt_last_seen_version").then((seen) => {
+      if (seen !== APP_VERSION) setShowWhatsNew(true);
+    });
+  }, [user, workoutsLoading]);
+
+  const handleWhatsNewDismiss = async () => {
+    await AsyncStorage.setItem("gt_last_seen_version", APP_VERSION);
+    setShowWhatsNew(false);
+  };
+
+  const handleWorkoutsChange = useCallback((nextWorkouts) => {
+    setWorkouts(nextWorkouts);
+  }, []);
+
+  const addCustomExercise = async (name, category, fields) => {
+    const newEx = { name, category, ...(fields?.length ? { fields } : {}) };
     const updated = [...exercises, newEx];
     setExercises(updated);
     if (user && !auth.isDemo) {
       await saveExercisesLib(updated);
     } else {
-      // Save locally if guest/demo
       await AsyncStorage.setItem(
         "gt_exercises_local_demo-user",
         JSON.stringify(updated),
@@ -225,10 +278,7 @@ export default function App() {
     if (!wk.exs.find((e) => e.name === name)) {
       const updatedWorkout = { ...wk, exs: [...wk.exs, { name, sets: [] }] };
 
-      setWorkouts((p) => {
-        const next = { ...p, [dateStr]: updatedWorkout };
-        return next;
-      });
+      setWorkouts((p) => ({ ...p, [dateStr]: updatedWorkout }));
       await saveWorkout(dateStr, updatedWorkout);
 
       Alert.alert("✓ Added", `"${name}" added to today's workout!`, [
@@ -240,19 +290,10 @@ export default function App() {
     }
   };
 
-  if (loading) {
-    return (
-      <View
-        style={{
-          flex: 1,
-          backgroundColor: COLORS.bg,
-          justifyContent: "center",
-          alignItems: "center",
-        }}
-      >
-        <ActivityIndicator size="large" color={COLORS.accent} />
-      </View>
-    );
+  const showSplash = loading || (user && workoutsLoading);
+
+  if (showSplash) {
+    return <AppSplash message={splashMessage} />;
   }
 
   return (
@@ -318,6 +359,9 @@ export default function App() {
                       user={user}
                       workouts={workouts}
                       navigation={navigation}
+                      showRestoreHint={showRestoreHint}
+                      onDismissRestoreHint={() => setShowRestoreHint(false)}
+                      onWorkoutsChange={handleWorkoutsChange}
                       onSignOut={async () => {
                         if (auth.isDemo) {
                           auth.isDemo = false;
@@ -327,6 +371,11 @@ export default function App() {
                           signOut(auth);
                         }
                       }}
+                    />
+                    <WhatsNewModal
+                      visible={showWhatsNew}
+                      version={APP_VERSION}
+                      onDismiss={handleWhatsNewDismiss}
                     />
                   </SafeAreaView>
                 )}
@@ -351,6 +400,8 @@ export default function App() {
                     <TodayScreen
                       navigation={navigation}
                       exercises={exercises}
+                      workouts={workouts}
+                      onWorkoutsChange={handleWorkoutsChange}
                       onAddCustomExercise={addCustomExercise}
                     />
                   </SafeAreaView>
@@ -376,6 +427,7 @@ export default function App() {
                     <HistoryScreen
                       workouts={workouts}
                       loading={workoutsLoading}
+                      onWorkoutsChange={handleWorkoutsChange}
                     />
                   </SafeAreaView>
                 )}

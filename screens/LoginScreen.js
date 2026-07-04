@@ -87,6 +87,9 @@ export default function LoginScreen({ onGuestLogin }) {
         {/* Login Section */}
         <View style={styles.loginSection}>
           <Text style={styles.loginText}>Sign in to get started</Text>
+          <Text style={styles.restoreHint}>
+            Sign in with the same Google account to restore your workout history after reinstall.
+          </Text>
 
           <TouchableOpacity
             style={[styles.googleButton, loading && styles.googleButtonDisabled]}
@@ -241,6 +244,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: COLORS.muted,
     textAlign: "center",
+  },
+  restoreHint: {
+    fontSize: 12,
+    color: COLORS.muted,
+    textAlign: "center",
+    lineHeight: 17,
+    paddingHorizontal: 8,
   },
   googleButton: {
     flexDirection: "row",

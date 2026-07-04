@@ -3,7 +3,8 @@ import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, TextInput,
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
 import { COLORS, USER_GOALS_DEFAULT, todayStr, prettyDate } from "../constants/data";
-import { calculateStreaks, listenUserSettings, saveUserSettings, listenBodyPhotos, saveBodyPhotoEntry, deleteBodyPhotoEntry } from "../utils/firestore";
+import { calculateStreaks, listenUserSettings, saveUserSettings, listenBodyPhotos, saveBodyPhotoEntry, deleteBodyPhotoEntry, getWorkouts } from "../utils/firestore";
+import { exportUserData, importUserData } from "../utils/backup";
 
 const compressImageWeb = (base64Str, maxWidth, maxHeight, quality = 0.5) => {
   return new Promise((resolve) => {
@@ -39,7 +40,15 @@ const compressImageWeb = (base64Str, maxWidth, maxHeight, quality = 0.5) => {
   });
 };
 
-export default function DashboardScreen({ user, workouts, onSignOut, navigation }) {
+export default function DashboardScreen({
+  user,
+  workouts,
+  onSignOut,
+  navigation,
+  showRestoreHint,
+  onDismissRestoreHint,
+  onWorkoutsChange,
+}) {
   const [settings, setSettings] = useState({
     goalsPerWeek: USER_GOALS_DEFAULT.activitiesPerWeek,
     activeDaysPerWeek: USER_GOALS_DEFAULT.activeDaysPerWeek,
@@ -62,6 +71,7 @@ export default function DashboardScreen({ user, workouts, onSignOut, navigation 
   const [bodyPhotos, setBodyPhotos] = useState([]);
   const [showBodyHistoryModal, setShowBodyHistoryModal] = useState(false);
   const [activeHistoryPhoto, setActiveHistoryPhoto] = useState(null);
+  const [backupBusy, setBackupBusy] = useState(false);
 
   // Sync profileData when settings change
   useEffect(() => {
@@ -240,6 +250,48 @@ export default function DashboardScreen({ user, workouts, onSignOut, navigation 
     setShowGoalModal(false);
   };
 
+  const handleExport = async () => {
+    try {
+      setBackupBusy(true);
+      const result = await exportUserData();
+      Alert.alert("Backup Exported", `Saved as ${result.fileName}`);
+    } catch (err) {
+      Alert.alert("Export Failed", err.message || "Could not export backup");
+    } finally {
+      setBackupBusy(false);
+    }
+  };
+
+  const handleImport = async () => {
+    Alert.alert(
+      "Import Backup",
+      "This will merge workouts from your backup file. Continue?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Import",
+          onPress: async () => {
+            try {
+              setBackupBusy(true);
+              const result = await importUserData();
+              if (result.cancelled) return;
+              const fresh = await getWorkouts();
+              if (typeof onWorkoutsChange === "function") onWorkoutsChange(fresh);
+              Alert.alert(
+                "Import Complete",
+                `Restored ${result.workoutCount} workout days${result.exerciseCount ? ` and ${result.exerciseCount} exercises` : ""}.`,
+              );
+            } catch (err) {
+              Alert.alert("Import Failed", err.message || "Invalid backup file");
+            } finally {
+              setBackupBusy(false);
+            }
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
@@ -260,6 +312,16 @@ export default function DashboardScreen({ user, workouts, onSignOut, navigation 
       </View>
 
       <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        {showRestoreHint && (
+          <TouchableOpacity style={styles.restoreBanner} onPress={onDismissRestoreHint}>
+            <MaterialCommunityIcons name="cloud-check" size={18} color={COLORS.green} />
+            <Text style={styles.restoreBannerText}>
+              History restored from cloud. Same Google account keeps your data after reinstall.
+            </Text>
+            <MaterialCommunityIcons name="close" size={16} color={COLORS.muted} />
+          </TouchableOpacity>
+        )}
+
         {/* Main Stats */}
         <View style={styles.statsGrid}>
           <StatCard label="SESSIONS" value={stats.sessions} icon="calendar-check" color={COLORS.accent} isHero={true} />
@@ -357,7 +419,7 @@ export default function DashboardScreen({ user, workouts, onSignOut, navigation 
               ]}
             />
           </View>
-          <Text style={styles.progressText}>Active days {stats.thisWeekWorkouts}/{stats.activeDaysPerWeek}</Text>
+          <Text style={styles.progressText}>Completed {stats.thisWeekWorkouts}/{stats.activeDaysPerWeek} this week</Text>
         </View>
 
         {/* Action Buttons */}
@@ -379,6 +441,24 @@ export default function DashboardScreen({ user, workouts, onSignOut, navigation 
         <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => navigation.navigate("Exercises")}>
           <MaterialCommunityIcons name="format-list-bulleted" size={18} color={COLORS.accent} />
           <Text style={styles.secondaryButtonText}>Manage Exercises</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.secondaryButton, backupBusy && { opacity: 0.6 }]}
+          onPress={handleExport}
+          disabled={backupBusy}
+        >
+          <MaterialCommunityIcons name="export" size={18} color={COLORS.accent} />
+          <Text style={styles.secondaryButtonText}>Export Backup</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.button, styles.secondaryButton, backupBusy && { opacity: 0.6 }]}
+          onPress={handleImport}
+          disabled={backupBusy}
+        >
+          <MaterialCommunityIcons name="import" size={18} color={COLORS.accent} />
+          <Text style={styles.secondaryButtonText}>Import Backup</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={[styles.button, styles.dangerButton]} onPress={onSignOut}>
@@ -702,6 +782,23 @@ const styles = StyleSheet.create({
   },
   profileText: { color: COLORS.text, fontSize: 12, fontWeight: "600" },
   scrollContent: { flex: 1, padding: 12 },
+  restoreBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    backgroundColor: `${COLORS.green}15`,
+    borderWidth: 1,
+    borderColor: `${COLORS.green}40`,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 12,
+  },
+  restoreBannerText: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 12,
+    lineHeight: 17,
+  },
   statsGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 12 },
   statCard: {
     width: "48%",

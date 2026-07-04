@@ -2,7 +2,7 @@
   "expo": {
     "name": "GYM TRACKER",
     "slug": "gym-tracker",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "gymtracker",
@@ -36,7 +36,7 @@
           ]
         }
       ],
-      "versionCode": 3
+      "versionCode": 4
     },
     "web": {
       "output": "single",

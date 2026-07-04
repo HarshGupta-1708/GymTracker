@@ -47,16 +47,21 @@ export const estimateKcal = (sets) => {
 // Get streak data
 export const calculateStreaks = (workouts) => {
   if (!workouts || Object.keys(workouts).length === 0) {
-    return { currentStreak: 0, longestStreak: 0, thisWeekWorkouts: 0 };
+    return { currentStreak: 0, longestStreak: 0, thisWeekWorkouts: 0, thisWeekActive: 0 };
   }
 
+  const isActiveDay = (date) => {
+    const w = workouts[date];
+    return w?.completedAt || w?.exs?.length > 0;
+  };
+
   const dates = Object.keys(workouts)
-    .filter((date) => workouts[date]?.exs?.length > 0)
+    .filter(isActiveDay)
     .sort()
     .reverse();
 
   if (dates.length === 0) {
-    return { currentStreak: 0, longestStreak: 0, thisWeekWorkouts: 0 };
+    return { currentStreak: 0, longestStreak: 0, thisWeekWorkouts: 0, thisWeekActive: 0 };
   }
 
   // Calculate current streak
@@ -89,12 +94,24 @@ export const calculateStreaks = (workouts) => {
   const today = new Date();
   const weekStart = new Date(today);
   weekStart.setDate(today.getDate() - today.getDay());
-  const weekDates = dates.filter((date) => new Date(date) >= weekStart).length;
+  const isCompletedDay = (w) => {
+    if (!w) return false;
+    if (w.completedAt) return true;
+    return w.exs?.length > 0 && w.exs.some((ex) => ex.sets?.length > 0);
+  };
+
+  const thisWeekWorkouts = Object.keys(workouts).filter((date) => {
+    if (new Date(`${date}T12:00`) < weekStart) return false;
+    return isCompletedDay(workouts[date]);
+  }).length;
+
+  const thisWeekActive = dates.filter((date) => new Date(`${date}T12:00`) >= weekStart).length;
 
   return {
     currentStreak,
     longestStreak,
-    thisWeekWorkouts: weekDates,
+    thisWeekWorkouts,
+    thisWeekActive,
   };
 };
 

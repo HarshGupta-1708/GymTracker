@@ -42,3 +42,11 @@ app-example
 /ios
 /android
 .vercel
+
+# IDE
+.idea/
+
+# Build artifacts
+*.apk
+*.aab
+*.ipa

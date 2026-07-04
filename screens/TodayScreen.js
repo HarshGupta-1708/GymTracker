@@ -1,5 +1,5 @@
 import { MaterialCommunityIcons } from "@expo/vector-icons";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
     ActivityIndicator,
     Alert,
@@ -19,58 +19,81 @@ import {
     COLORS,
     PRESET_EXERCISES,
     WORKOUT_PLANS,
-    getTrackingType,
     prettyDate,
-    timeStr,
     toDateStr,
     todayStr,
 } from "../constants/data";
-import { estimateKcal, listenWorkouts, saveWorkout } from "../utils/firestore";
+import CustomExerciseForm from "../components/CustomExerciseForm";
+import { estimateKcal, saveWorkout } from "../utils/firestore";
+import {
+    buildSetFromFields,
+    formatSetFieldValue,
+    getExerciseFields,
+    validateSetFields,
+} from "../utils/exerciseTracking";
 
 const { width } = Dimensions.get("window");
 
-export default function TodayScreen({ navigation, exercises: propExercises = PRESET_EXERCISES, onAddCustomExercise }) {
+export default function TodayScreen({
+  navigation,
+  exercises: propExercises = PRESET_EXERCISES,
+  workouts: propWorkouts,
+  onWorkoutsChange,
+  onAddCustomExercise,
+}) {
   const [date, setDate] = useState(todayStr());
-  const [workouts, setWorkouts] = useState({});
+  const [localWorkouts, setLocalWorkouts] = useState({});
   const workoutsRef = useRef({});
+  const useSharedWorkouts = propWorkouts !== undefined;
+  const workouts = useSharedWorkouts ? propWorkouts : localWorkouts;
   const exLib = propExercises;
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!useSharedWorkouts);
   const [syncing, setSyncing] = useState(false);
+  const [dayTitleDraft, setDayTitleDraft] = useState("");
 
   // Modals
   const [modal, setModal] = useState(null);
   const [addSetFor, setAddSetFor] = useState(null);
-  const [setW, setSetW] = useState("");
-  const [setR, setSetR] = useState("");
-  const [setDuration, setSetDuration] = useState("");
-  const [setDistance, setSetDistance] = useState("");
+  const [setFieldValues, setSetFieldValues] = useState({});
   const [exSearch, setExSearch] = useState("");
-  const [newExName, setNewExName] = useState("");
-  const [newExCat, setNewExCat] = useState("Custom");
+  const [showCustomForm, setShowCustomForm] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   useEffect(() => {
-    const unsubscribe = listenWorkouts((data) => {
-      setWorkouts(data);
-      workoutsRef.current = data;
+    workoutsRef.current = workouts;
+  }, [workouts]);
+
+  useEffect(() => {
+    if (useSharedWorkouts) {
       setLoading(false);
-      setSyncing(false);
-    });
-    return unsubscribe;
-  }, []);
+    }
+  }, [useSharedWorkouts, propWorkouts]);
 
   const wk = workouts[date] || { exs: [] };
+
+  useEffect(() => {
+    setDayTitleDraft(wk.dayTitle || "");
+  }, [date, wk.dayTitle]);
   const isToday = date === todayStr();
   const hasCompleted = Boolean(wk.completedAt);
 
+  const setWorkoutsState = (updater) => {
+    const prev = workoutsRef.current;
+    const next = typeof updater === "function" ? updater(prev) : updater;
+    workoutsRef.current = next;
+    if (useSharedWorkouts && onWorkoutsChange) {
+      onWorkoutsChange(next);
+    } else {
+      setLocalWorkouts(next);
+    }
+    return next;
+  };
+
   const updWk = async (val) => {
-    setWorkouts((p) => {
-      const next = { ...p, [date]: val };
-      workoutsRef.current = next;
-      return next;
-    });
+    setWorkoutsState((p) => ({ ...p, [date]: val }));
     setSyncing(true);
     await saveWorkout(date, val);
+    setSyncing(false);
   };
 
   const addExToDay = async (name) => {
@@ -120,7 +143,11 @@ export default function TodayScreen({ navigation, exercises: propExercises = PRE
       ...copiedExs.filter((ex) => !existing.has(ex.name)),
     ];
 
-    await updWk({ ...wk, exs: newExs });
+    await updWk({
+      ...wk,
+      exs: newExs,
+      dayTitle: sourceWk.dayTitle || wk.dayTitle || "",
+    });
     setModal(null);
     Alert.alert(
       "✓ Copied!",
@@ -137,14 +164,17 @@ export default function TodayScreen({ navigation, exercises: propExercises = PRE
   };
 
   const openAddSet = (name) => {
+    const exercise = exLib.find((e) => e.name === name);
+    const fields = getExerciseFields(exercise || { name, category: "Custom" });
     const allSets = Object.values(workouts).flatMap((w) =>
       (w.exs || []).filter((e) => e.name === name).flatMap((e) => e.sets),
     );
     const last = allSets[allSets.length - 1];
-    setSetW(last ? String(last.w) : "");
-    setSetR(last ? String(last.r) : "");
-    setSetDuration(last?.durMin ? String(last.durMin) : "");
-    setSetDistance(last?.distKm ? String(last.distKm) : "");
+    const initial = {};
+    fields.forEach((f) => {
+      initial[f.key] = last?.[f.key] !== undefined ? String(last[f.key]) : "";
+    });
+    setSetFieldValues(initial);
     setAddSetFor(name);
     setModal("addSet");
   };
@@ -156,25 +186,11 @@ export default function TodayScreen({ navigation, exercises: propExercises = PRE
     }
 
     const exercise = exLib.find((e) => e.name === addSetFor);
-    const tracking = getTrackingType(addSetFor, exercise?.category);
-    const w = parseFloat(setW) || 0;
-    const r = parseInt(setR) || 0;
-    const durMin = parseFloat(setDuration) || 0;
-    const distKm = parseFloat(setDistance) || 0;
+    const fields = getExerciseFields(exercise || { name: addSetFor, category: "Custom" });
+    const err = validateSetFields(fields, setFieldValues);
+    if (err) return Alert.alert("Error", err);
 
-    if (tracking === "strength" && !r) return Alert.alert("Error", "Enter reps");
-    if (tracking === "duration" && !durMin) return Alert.alert("Error", "Enter duration");
-    if (tracking === "cardio" && !durMin && !distKm) {
-      return Alert.alert("Error", "Enter duration or distance");
-    }
-
-    const newSet =
-      tracking === "strength"
-        ? { w, r, t: timeStr() }
-        : tracking === "duration"
-          ? { durMin, t: timeStr() }
-          : { durMin, distKm, t: timeStr() };
-
+    const newSet = buildSetFromFields(fields, setFieldValues);
     const latestWk = workoutsRef.current[date] || { exs: [] };
     await updWk({
       ...latestWk,
@@ -184,21 +200,19 @@ export default function TodayScreen({ navigation, exercises: propExercises = PRE
           : e,
       ),
     });
-    setSetR("");
-    setSetW("");
-    setSetDuration("");
-    setSetDistance("");
+    setSetFieldValues({});
     setModal(null);
   };
 
   const completeWorkout = async () => {
-    if (!wk.exs?.length) {
+    const latestWk = workoutsRef.current[date] || { exs: [] };
+    if (!latestWk.exs?.length) {
       Alert.alert("No workout", "Add at least one exercise first.");
       return;
     }
-    const kcal = wk.exs.reduce((sum, ex) => sum + estimateKcal(ex.sets || []), 0);
+    const kcal = latestWk.exs.reduce((sum, ex) => sum + estimateKcal(ex.sets || []), 0);
     await updWk({
-      ...wk,
+      ...latestWk,
       completedAt: new Date().toISOString(),
       completedDate: date,
       completionSummary: {
@@ -224,16 +238,21 @@ export default function TodayScreen({ navigation, exercises: propExercises = PRE
     });
   };
 
-  const addCustomEx = async () => {
-    if (!newExName.trim()) return;
-    const name = newExName.trim();
-    if (!exLib.find((e) => e.name === name)) {
-      if (typeof onAddCustomExercise === 'function') {
-        await onAddCustomExercise(name, newExCat);
+  const addCustomEx = async ({ name, category, fields }) => {
+    if (!name.trim()) return;
+    if (!exLib.find((e) => e.name === name.trim())) {
+      if (typeof onAddCustomExercise === "function") {
+        await onAddCustomExercise(name.trim(), category, fields);
       }
     }
-    setNewExName("");
+    setShowCustomForm(false);
     setModal("addEx");
+  };
+
+  const saveDayTitle = async () => {
+    const trimmed = dayTitleDraft.trim();
+    if (trimmed === (wk.dayTitle || "")) return;
+    await updWk({ ...wk, dayTitle: trimmed });
   };
 
   const changeDate = (n) => {
@@ -276,6 +295,11 @@ export default function TodayScreen({ navigation, exercises: propExercises = PRE
 
   const groupedAdd = (cat) => filtAddEx.filter((e) => e.category === cat);
 
+  const categoryList = useMemo(() => {
+    const fromLib = [...new Set(exLib.map((e) => e.category).filter(Boolean))];
+    return [...new Set([...CATEGORIES, ...fromLib])];
+  }, [exLib]);
+
   if (loading) {
     return (
       <View style={styles.centerContainer}>
@@ -295,6 +319,9 @@ export default function TodayScreen({ navigation, exercises: propExercises = PRE
             <Text style={[styles.headerDate, { color: COLORS.accent, fontWeight: '700' }]}>
               {prettyDate(date)} ▾
             </Text>
+            {wk.dayTitle ? (
+              <Text style={styles.headerDayTitle}>{wk.dayTitle}</Text>
+            ) : null}
           </TouchableOpacity>
         </View>
         <View style={styles.syncing}>
@@ -348,6 +375,21 @@ export default function TodayScreen({ navigation, exercises: propExercises = PRE
         </TouchableOpacity>
       </View>
 
+      {/* Workout Day Name */}
+      <View style={styles.dayTitleRow}>
+        <MaterialCommunityIcons name="label-outline" size={18} color={COLORS.accent} />
+        <TextInput
+          style={styles.dayTitleInput}
+          placeholder="Workout name (e.g. Leg Day, Push Pull)"
+          placeholderTextColor={COLORS.muted}
+          value={dayTitleDraft}
+          onChangeText={setDayTitleDraft}
+          onBlur={saveDayTitle}
+          onSubmitEditing={saveDayTitle}
+          returnKeyType="done"
+        />
+      </View>
+
       {/* Stats */}
       {wk.exs.length > 0 && (
         <View style={styles.stats}>
@@ -383,12 +425,13 @@ export default function TodayScreen({ navigation, exercises: propExercises = PRE
         ) : (
           <>
             {wk.exs.map((ex) => {
-              const cat =
-                exLib.find((e) => e.name === ex.name)?.category || "Custom";
+              const exerciseDef = exLib.find((e) => e.name === ex.name);
+              const cat = exerciseDef?.category || "Custom";
               const color = CATEGORY_COLORS[cat] || COLORS.accent;
+              const fields = getExerciseFields(exerciseDef || { name: ex.name, category: cat });
               const allW = allMaxW(ex.name);
               const maxSetW = ex.sets.length
-                ? Math.max(...ex.sets.map((s) => s.w))
+                ? Math.max(...ex.sets.map((s) => s.w || 0))
                 : 0;
               const isPR =
                 allW.length > 0 && maxSetW > 0 && maxSetW >= Math.max(...allW);
@@ -399,6 +442,7 @@ export default function TodayScreen({ navigation, exercises: propExercises = PRE
                   ex={ex}
                   cat={cat}
                   color={color}
+                  fields={fields}
                   isPR={isPR}
                   onAddSet={() => openAddSet(ex.name)}
                   onRemoveEx={() => removeEx(ex.name)}
@@ -457,15 +501,11 @@ export default function TodayScreen({ navigation, exercises: propExercises = PRE
       {modal === "addSet" && (
         <AddSetModal
           exerciseName={addSetFor}
-          category={exLib.find((e) => e.name === addSetFor)?.category}
-          weight={setW}
-          reps={setR}
-          duration={setDuration}
-          distance={setDistance}
-          onWeightChange={setSetW}
-          onRepsChange={setSetR}
-          onDurationChange={setSetDuration}
-          onDistanceChange={setSetDistance}
+          exercise={exLib.find((e) => e.name === addSetFor)}
+          fieldValues={setFieldValues}
+          onFieldChange={(key, val) =>
+            setSetFieldValues((p) => ({ ...p, [key]: val }))
+          }
           onSave={saveSet}
           onClose={() => setModal(null)}
         />
@@ -476,26 +516,29 @@ export default function TodayScreen({ navigation, exercises: propExercises = PRE
           search={exSearch}
           onSearchChange={setExSearch}
           exercises={exLib}
+          categoryList={categoryList}
           groupedAdd={groupedAdd}
           onSelectEx={addExToDay}
           onClose={() => {
             setModal(null);
             setExSearch("");
           }}
-          onAddCustom={() => setModal("customEx")}
+          onAddCustom={() => {
+            setModal(null);
+            setShowCustomForm(true);
+          }}
         />
       )}
 
-      {modal === "customEx" && (
-        <CustomExerciseModal
-          name={newExName}
-          category={newExCat}
-          onNameChange={setNewExName}
-          onCategoryChange={setNewExCat}
-          onAdd={addCustomEx}
-          onClose={() => setModal("addEx")}
-        />
-      )}
+      <CustomExerciseForm
+        visible={showCustomForm}
+        exercises={exLib}
+        onClose={() => {
+          setShowCustomForm(false);
+          setModal("addEx");
+        }}
+        onSave={addCustomEx}
+      />
 
       {modal === "plan" && (
         <PlanModal
@@ -544,12 +587,13 @@ function ExerciseCard({
   ex,
   cat,
   color,
+  fields,
   isPR,
   onAddSet,
   onRemoveEx,
   onRemoveSet,
 }) {
-  const tracking = getTrackingType(ex.name, cat);
+  const displayFields = fields?.length ? fields.slice(0, 2) : [];
   return (
     <View style={styles.exerciseCard}>
       <View style={styles.exerciseHeader}>
@@ -591,12 +635,9 @@ function ExerciseCard({
         <View>
           <View style={styles.setsHeader}>
             <Text style={styles.setNumber}>#</Text>
-            <Text style={styles.setLabel}>
-              {tracking === "strength" ? "Weight" : "Duration"}
-            </Text>
-            <Text style={styles.setLabel}>
-              {tracking === "cardio" ? "Distance" : tracking === "strength" ? "Reps" : "Details"}
-            </Text>
+            {displayFields.map((f) => (
+              <Text key={f.key} style={styles.setLabel}>{f.label}</Text>
+            ))}
             <Text style={styles.setLabel}>Time</Text>
             <View style={{ width: 24 }} />
           </View>
@@ -604,7 +645,7 @@ function ExerciseCard({
             const isTop =
               set.w > 0 &&
               ex.sets.length > 1 &&
-              set.w === Math.max(...ex.sets.map((s) => s.w));
+              set.w === Math.max(...ex.sets.map((s) => s.w || 0));
             return (
               <View
                 key={i}
@@ -617,25 +658,17 @@ function ExerciseCard({
                 ]}
               >
                 <Text style={styles.setNumber}>{i + 1}</Text>
-                <Text
-                  style={[
-                    styles.setWeight,
-                    { color: isTop ? COLORS.gold : COLORS.text },
-                  ]}
-                >
-                  {tracking === "strength"
-                    ? set.w > 0
-                      ? `${set.w}kg`
-                      : "BW"
-                    : `${set.durMin || 0} min`}
-                </Text>
-                <Text style={styles.setReps}>
-                  {tracking === "strength"
-                    ? set.r
-                    : tracking === "cardio"
-                      ? `${set.distKm || 0} km`
-                      : "-"}
-                </Text>
+                {displayFields.map((f) => (
+                  <Text
+                    key={f.key}
+                    style={[
+                      styles.setWeight,
+                      { color: f.key === "w" && isTop ? COLORS.gold : COLORS.text },
+                    ]}
+                  >
+                    {formatSetFieldValue(f, set[f.key])}
+                  </Text>
+                ))}
                 <Text style={styles.setTime}>{set.t}</Text>
                 <TouchableOpacity
                   onPress={() => onRemoveSet(i)}
@@ -707,19 +740,13 @@ function EmptyState({ onAddEx, onAddPlan, onAddCopy }) {
 
 function AddSetModal({
   exerciseName,
-  category,
-  weight,
-  reps,
-  duration,
-  distance,
-  onWeightChange,
-  onRepsChange,
-  onDurationChange,
-  onDistanceChange,
+  exercise,
+  fieldValues,
+  onFieldChange,
   onSave,
   onClose,
 }) {
-  const tracking = getTrackingType(exerciseName, category);
+  const fields = getExerciseFields(exercise || { name: exerciseName, category: "Custom" });
   return (
     <Modal transparent animationType="slide" visible>
       <View style={styles.modalOverlay}>
@@ -736,70 +763,22 @@ function AddSetModal({
           </View>
           <Text style={styles.exerciseName}>{exerciseName}</Text>
 
-          {tracking === "strength" && (
-            <View style={styles.inputGrid}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>WEIGHT (kg)</Text>
+          <View style={styles.inputGrid}>
+            {fields.map((f) => (
+              <View key={f.key} style={{ flex: 1, minWidth: "45%" }}>
+                <Text style={styles.inputLabel}>
+                  {f.label.toUpperCase()}{f.unit ? ` (${f.unit})` : ""}
+                </Text>
                 <TextInput
                   style={styles.input}
                   placeholder="0"
                   keyboardType="decimal-pad"
-                  value={weight}
-                  onChangeText={onWeightChange}
+                  value={fieldValues[f.key] || ""}
+                  onChangeText={(v) => onFieldChange(f.key, v)}
                 />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>REPS</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="12"
-                  keyboardType="number-pad"
-                  value={reps}
-                  onChangeText={onRepsChange}
-                />
-              </View>
-            </View>
-          )}
-
-          {tracking === "duration" && (
-            <View style={styles.inputGrid}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>DURATION (min)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="30"
-                  keyboardType="decimal-pad"
-                  value={duration}
-                  onChangeText={onDurationChange}
-                />
-              </View>
-            </View>
-          )}
-
-          {tracking === "cardio" && (
-            <View style={styles.inputGrid}>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>DURATION (min)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="30"
-                  keyboardType="decimal-pad"
-                  value={duration}
-                  onChangeText={onDurationChange}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.inputLabel}>DISTANCE (km)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="2.5"
-                  keyboardType="decimal-pad"
-                  value={distance}
-                  onChangeText={onDistanceChange}
-                />
-              </View>
-            </View>
-          )}
+            ))}
+          </View>
 
           <TouchableOpacity
             style={[styles.button, styles.buttonPrimary]}
@@ -818,6 +797,7 @@ function AddExerciseModal({
   search,
   onSearchChange,
   exercises,
+  categoryList,
   groupedAdd,
   onSelectEx,
   onClose,
@@ -855,7 +835,7 @@ function AddExerciseModal({
           </View>
 
           <ScrollView style={{ maxHeight: "70%" }}>
-            {CATEGORIES.map((cat) => {
+            {categoryList.map((cat) => {
               const exs = groupedAdd(cat);
               if (!exs.length) return null;
               return (
@@ -863,7 +843,7 @@ function AddExerciseModal({
                   <Text
                     style={[
                       styles.categoryTitle,
-                      { color: CATEGORY_COLORS[cat] },
+                      { color: CATEGORY_COLORS[cat] || COLORS.accent },
                     ]}
                   >
                     {cat}
@@ -892,80 +872,6 @@ function AddExerciseModal({
               color={COLORS.accent}
             />
             <Text style={styles.buttonTextOutline}>Create Custom</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-    </Modal>
-  );
-}
-
-function CustomExerciseModal({
-  name,
-  category,
-  onNameChange,
-  onCategoryChange,
-  onAdd,
-  onClose,
-}) {
-  return (
-    <Modal transparent animationType="slide" visible>
-      <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>NEW EXERCISE</Text>
-            <TouchableOpacity onPress={onClose}>
-              <MaterialCommunityIcons
-                name="close"
-                size={24}
-                color={COLORS.muted}
-              />
-            </TouchableOpacity>
-          </View>
-
-          <Text style={styles.inputLabel}>EXERCISE NAME</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="e.g., Leg Extension"
-            value={name}
-            onChangeText={onNameChange}
-          />
-
-          <Text style={[styles.inputLabel, { marginTop: 16 }]}>CATEGORY</Text>
-          <ScrollView
-            style={styles.categoryGrid}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-          >
-            {CATEGORIES.map((cat) => (
-              <TouchableOpacity
-                key={cat}
-                style={[
-                  styles.categoryBtn,
-                  category === cat && {
-                    backgroundColor: CATEGORY_COLORS[cat],
-                    borderColor: CATEGORY_COLORS[cat],
-                  },
-                ]}
-                onPress={() => onCategoryChange(cat)}
-              >
-                <Text
-                  style={[
-                    styles.categoryBtnText,
-                    category === cat && { color: "#000" },
-                  ]}
-                >
-                  {cat}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          <TouchableOpacity
-            style={[styles.button, styles.buttonPrimary]}
-            onPress={onAdd}
-          >
-            <MaterialCommunityIcons name="plus" size={16} color="#000" />
-            <Text style={styles.buttonTextPrimary}>ADD EXERCISE</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -1048,6 +954,9 @@ function CopyWorkoutModal({ previousDates, workouts, onSelectDate, onClose }) {
                 >
                   <View style={{ flex: 1 }}>
                     <Text style={styles.copyDate}>{prettyDate(date)}</Text>
+                    {wk?.dayTitle ? (
+                      <Text style={styles.copyDayTitle}>{wk.dayTitle}</Text>
+                    ) : null}
                     <Text style={styles.copyDetails}>
                       {exCount} exercise{exCount !== 1 ? "s" : ""} • {setCount}{" "}
                       set{setCount !== 1 ? "s" : ""}
@@ -1261,6 +1170,12 @@ const styles = StyleSheet.create({
     color: COLORS.muted,
     marginTop: 2,
   },
+  headerDayTitle: {
+    fontSize: 13,
+    color: COLORS.text,
+    fontWeight: "700",
+    marginTop: 2,
+  },
   syncing: {
     alignItems: "center",
     gap: 4,
@@ -1309,6 +1224,23 @@ const styles = StyleSheet.create({
     color: COLORS.accent,
     fontSize: 11,
     fontWeight: "700",
+  },
+  dayTitleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    backgroundColor: COLORS.card,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.border,
+  },
+  dayTitleInput: {
+    flex: 1,
+    color: COLORS.text,
+    fontSize: 15,
+    fontWeight: "700",
+    paddingVertical: 4,
   },
   stats: {
     flexDirection: "row",
@@ -1594,6 +1526,7 @@ const styles = StyleSheet.create({
   },
   inputGrid: {
     flexDirection: "row",
+    flexWrap: "wrap",
     gap: 12,
     marginBottom: 16,
   },
@@ -1652,6 +1585,12 @@ const styles = StyleSheet.create({
   copyDate: {
     color: COLORS.text,
     fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 2,
+  },
+  copyDayTitle: {
+    color: COLORS.accent,
+    fontSize: 12,
     fontWeight: "700",
     marginBottom: 4,
   },
