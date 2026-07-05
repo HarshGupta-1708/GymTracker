@@ -4,10 +4,13 @@ Complete workout tracking app with **Android + iOS + Web** support, **Google Aut
 
 ## 📲 Download Android APK
 
-[![Download APK](https://img.shields.io/badge/Download-APK%20v1.2.0-green?style=for-the-badge)](https://github.com/HarshGupta-1708/GymTracker/releases/latest)
+[![Download APK](https://img.shields.io/badge/Download-APK%20v1.2.1-green?style=for-the-badge)](https://github.com/HarshGupta-1708/GymTracker/releases/latest)
+
+**Direct link (after you publish release):**  
+https://github.com/HarshGupta-1708/GymTracker/releases/download/v1.2.1/GymTracker-v1.2.1.apk
 
 > After installing: **Sign in with Google** — your workout history syncs from the cloud.  
-> Build instructions: [docs/APK_BUILD_AND_RELEASE.md](docs/APK_BUILD_AND_RELEASE.md)
+> Build / publish APK: [docs/APK_BUILD_AND_RELEASE.md](docs/APK_BUILD_AND_RELEASE.md)
 
 ---
 
