@@ -1,21 +1,20 @@
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { useCallback, useState } from "react";
-import { Platform } from "react-native";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "../config/firebaseConfig";
 
 /**
- * Web (Vercel / browser): Firebase popup — no redirect_uri mismatch.
- * Mobile uses useGoogleSignIn.android.js / .ios.js instead.
+ * Web (Vercel / browser): Firebase popup sign-in.
+ * Avoids redirect_uri_mismatch from expo-auth-session on custom domains.
  */
 export function useGoogleSignIn() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const setErrorState = useCallback((msg) => {
+    setError(msg);
+  }, []);
+
   const signIn = useCallback(async () => {
-    if (Platform.OS !== "web") {
-      setError("Use the native Google Sign-In flow on mobile.");
-      return;
-    }
     try {
       setError(null);
       setLoading(true);
@@ -23,11 +22,10 @@ export function useGoogleSignIn() {
       provider.setCustomParameters({ prompt: "select_account" });
       await signInWithPopup(auth, provider);
     } catch (err) {
-      console.error("Google Sign-In (web popup) failed:", err);
-      const code = err?.code || "";
-      if (code === "auth/popup-closed-by-user") {
+      console.error("Google Sign-In (web) failed:", err);
+      if (err?.code === "auth/popup-closed-by-user") {
         setError("Sign-in was cancelled.");
-      } else if (code === "auth/unauthorized-domain") {
+      } else if (err?.code === "auth/unauthorized-domain") {
         setError(
           "This domain is not authorized in Firebase. Add it under Authentication → Settings → Authorized domains.",
         );
@@ -43,6 +41,6 @@ export function useGoogleSignIn() {
     signIn,
     loading,
     error,
-    setError,
+    setError: setErrorState,
   };
 }

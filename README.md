@@ -19,6 +19,7 @@ Cross-platform workout tracker built with **React Native (Expo)** — log sets, 
 <p align="center">
   <img src="./docs/screenshots/5.jpeg" alt="Screenshot 5" width="180" />
   <img src="./docs/screenshots/6.jpeg" alt="Screenshot 6" width="180" />
+  <img src="./docs/screenshots/7.jpeg" alt="Screenshot 7" width="180" />
 </p>
 
 ---
@@ -69,6 +70,7 @@ npm run web
 | **Android APK** | `npm run build:apk` — [docs/APK_BUILD_AND_RELEASE.md](docs/APK_BUILD_AND_RELEASE.md) |
 | **AI Coach API** | [docs/COACH_AI_SETUP.md](docs/COACH_AI_SETUP.md) |
 | **Web deploy help** | [docs/DEPLOY_WEB.md](docs/DEPLOY_WEB.md) |
+| **Web Google Sign-In** | [docs/GOOGLE_WEB_SIGNIN.md](docs/GOOGLE_WEB_SIGNIN.md) |
 
 ---
 
