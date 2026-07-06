@@ -1,46 +1,67 @@
 # Deploy web app (Vercel)
 
-The old URL `gym-tracker-flax-beta.vercel.app` is **offline (404)**. Redeploy with these steps.
+**Live URL:** https://gym-tracker-kdg4.vercel.app
 
-## One-time setup
+## Why you saw 404 before
 
-1. Create account at **https://vercel.com** (sign in with GitHub)
-2. **Add New Project** → Import **HarshGupta-1708/GymTracker**
-3. Vercel reads `vercel.json` automatically:
-   - Build: `npm run build:web`
-   - Output: `dist`
+Vercel deployed an **old commit** (`fdafc7f`) **without** `vercel.json`. It uploaded raw source files (`.md`, `.tsx`) instead of running `npm run build:web`. There was no `index.html` at the site root → **404**.
 
-## Environment variables (optional)
+**Fix:** Push latest `master` (includes `vercel.json` + cleanup). Vercel will run `expo export` and serve the `dist/` folder.
 
-Google Sign-In on web uses baked-in client IDs in `constants/googleAuth.js`.  
-For overrides, add in Vercel → Project → Settings → Environment Variables:
+### Redeploy now
 
-| Variable | Purpose |
-|----------|---------|
-| `EXPO_PUBLIC_GOOGLE_CLIENT_ID` | Web OAuth |
-| `EXPO_PUBLIC_COACH_API_URL` | AI Coach API |
+1. Ensure latest code is on GitHub (`git push origin master`)
+2. Vercel → **gym-tracker** → **Deployments** → **Redeploy** → check **Use existing Build Cache: No**
+3. Build log should show `npm run build:web` and take **1–3 minutes** (not 7 seconds)
+4. Open https://gym-tracker-kdg4.vercel.app
 
-## Deploy
+---
 
-Every push to `master` can auto-deploy if enabled in Vercel.
+## Can Vercel host frontend + backend?
 
-Manual deploy from Mac:
+| Part | Where it runs | On Vercel only? |
+|------|----------------|-----------------|
+| **Web UI** | Vercel (`dist/`) | Yes |
+| **Login & workouts** | Firebase Auth + Firestore | No — Firebase (already set up) |
+| **AI Coach** | Render (`gymtracker-coach-api.onrender.com`) | No — separate free host |
+
+So: **Vercel = website.** Firebase + Render = backend services the app already uses. All features work on web when:
+
+1. Vercel build succeeds (`vercel.json` present)
+2. Google OAuth **Authorized JavaScript origins** includes `https://gym-tracker-kdg4.vercel.app`
+3. Render coach API is awake (first request may be slow on free tier)
+
+You do **not** need to move Firebase or Render onto Vercel.
+
+---
+
+## Google Sign-In on web
+
+Google Cloud Console → Credentials → **Web client** → Authorized JavaScript origins:
+
+```
+https://gym-tracker-kdg4.vercel.app
+```
+
+Save, wait 5 minutes, try sign-in again.
+
+---
+
+## Vercel project settings
+
+| Setting | Value |
+|---------|--------|
+| Framework Preset | Other |
+| Build Command | `npm run build:web` (from `vercel.json`) |
+| Output Directory | `dist` |
+| Install Command | `npm install` |
+
+---
+
+## Manual deploy from Mac
+
 ```bash
 npm install -g vercel
 cd /Users/harshgupta1708/Desktop/GymTracker
 vercel --prod
-```
-
-## After deploy
-
-1. Copy your URL (e.g. `https://gym-tracker-xxx.vercel.app`)
-2. Update **Live demo** link in `README.md`
-3. Add **Authorized JavaScript origins** in Google Cloud Console:
-   - `https://your-app.vercel.app`
-
-## Netlify (alternative)
-
-```bash
-npm run build:web
-npx netlify-cli deploy --prod --dir=dist
 ```
