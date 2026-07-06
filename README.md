@@ -1,229 +1,104 @@
-# 🏋️ GYM TRACKER - Cross-Platform Fitness App
+# Gym Tracker
 
-Complete workout tracking app with **Android + iOS + Web** support, **Google Authentication**, **Firebase Cloud Sync**, **AI Coach**, and **Offline Mode**.
+Cross-platform workout tracker built with **React Native (Expo)** — log sets, track progress, sync with **Firebase**, and get tips from a personal **AI Coach** powered by your own training history.
 
-## 📲 Download Android APK
+**[Live demo (web)](https://gym-tracker-flax-beta.vercel.app)** · **[Download Android APK](https://github.com/HarshGupta-1708/GymTracker/releases/latest)**
 
-[![Download APK](https://img.shields.io/badge/Download-APK%20v1.2.1-green?style=for-the-badge)](https://github.com/HarshGupta-1708/GymTracker/releases/latest)
-
-**Direct link (after you publish release):**  
-https://github.com/HarshGupta-1708/GymTracker/releases/download/v1.2.1/GymTracker-v1.2.1.apk
-
-> After installing: **Sign in with Google** — your workout history syncs from the cloud.  
-> Build / publish APK: [docs/APK_BUILD_AND_RELEASE.md](docs/APK_BUILD_AND_RELEASE.md)
+> Web demo: redeploy on Vercel if the link is down — see [docs/DEPLOY_WEB.md](docs/DEPLOY_WEB.md).  
+> Android: sign in with Google to restore workout history from the cloud.
 
 ---
 
-## ✨ Features
+## Screenshots
 
-### 📱 **Today Tab** - Real-Time Workout Logger
-- ✅ Date navigation (past & future workouts)
-- ✅ Quick exercise add with search
-- ✅ Log sets with weight/reps + auto-timestamp
-- ✅ Personal Best detection 🏆 (gold highlight)
-- ✅ Quick-start workout plans
-- ✅ Real-time sync status indicator
+Add phone screenshots to `docs/screenshots/` (see [docs/screenshots/README.md](docs/screenshots/README.md)), then they appear here:
 
-### 📅 **History Tab** - Past Workout Archive
-- ✅ Browse all previous workouts by date
-- ✅ Expand/collapse to view exercise details
-- ✅ Quick stats (exercises, sets, volume)
-- ✅ One-tap reopen any past workout
+<p align="center">
+  <img src="./docs/screenshots/login.png" alt="Login" width="200" />
+  <img src="./docs/screenshots/dashboard.png" alt="Dashboard" width="200" />
+  <img src="./docs/screenshots/today.png" alt="Today" width="200" />
+  <img src="./docs/screenshots/history.png" alt="History" width="200" />
+  <img src="./docs/screenshots/progress.png" alt="Progress" width="200" />
+</p>
 
-### 📈 **Progress Tab** - Analytics & Charts
-- ✅ Max weight progression graph (line chart)
-- ✅ Session volume analysis (bar chart)
-- ✅ Exercise-wise stats (PB, sessions, avg volume)
-- ✅ 20-session rolling window
-
-### 💪 **Exercises Tab** - Exercise Library
-- ✅ 40+ preset exercises (organized by category)
-- ✅ 8 exercise categories (Legs, Push, Pull, Biceps, Cardio, Recovery, etc.)
-- ✅ Search & filter
-- ✅ Add custom exercises
-- ✅ One-tap add to today's workout
-
-### 🔐 **Authentication**
-- ✅ Google Sign-in (streamlined with Expo Auth)
-- ✅ Persistent user sessions
-- ✅ Secure Firebase Authentication
-
-### ☁️ **Cloud & Offline**
-- ✅ **Real-time Firestore sync** (cloud storage)
-- ✅ **Automatic offline mode** - works without internet
-- ✅ **Local AsyncStorage backup** - never lose data
-- ✅ **Sync status indicator** - shows when syncing/synced
-- ✅ **Multi-device sync** - login on any device, see all workouts
+*Replace placeholder paths after you upload your images.*
 
 ---
 
-## ⚡ Quick Start
+## Features
 
-### **1. Firebase Setup (REQUIRED)**
+| Area | Highlights |
+|------|------------|
+| **Today** | Log workouts by date, custom exercises & fields, quick-start plans, PR highlights |
+| **History** | Calendar of past sessions, full workout view, edit day titles |
+| **Progress** | Max weight & volume charts per exercise |
+| **Exercises** | 40+ presets, custom exercises, edit/delete with history-aware updates |
+| **Dashboard** | Streaks, weekly goals, profile, backup export/import, 6 themes |
+| **AI Coach** | RAG-based coach using your logs (Groq API + optional local mode) |
+| **Sync** | Firestore cloud sync, offline cache, Google Sign-In |
 
-```bash
-# Go to firebase.google.com
-# 1. Create project: "GymTracker"
-# 2. Authentication → Google (Enable)
-# 3. Firestore Database → Create (Production mode)
-# 4. Add Web App & get credentials
-# 5. Update config/firebaseConfig.js
+---
 
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_PROJECT.firebaseapp.com",
-  projectId: "YOUR_PROJECT_ID",
-  // ... etc
-};
-```
-
-### **2. Update Firestore Rules**
-
-Go to Firestore → Rules → Paste:
-
-```firestore
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /users/{userId}/{document=**} {
-      allow read, write: if request.auth.uid == userId;
-    }
-  }
-}
-```
-
-### **3. .env File**
+## Quick start (developers)
 
 ```bash
-EXPO_PUBLIC_GOOGLE_CLIENT_ID=YOUR_WEB_CLIENT_ID.apps.googleusercontent.com
-```
-
-### **4. Run**
-
-```bash
+git clone https://github.com/HarshGupta-1708/GymTracker.git
+cd GymTracker
 npm install
-npm run web      # Web
-npm run ios      # iOS
-npm run android  # Android
+cp .env.example .env   # add Google OAuth client IDs if needed
+npm run web              # browser
+npm run android          # Android emulator / device
 ```
 
----
-
-## 📱 Platform Support
-
-| Platform | Status | How to Run |
-|----------|--------|-----------|
-| **Web** ✅ | Production Ready | `npm run web` |
-| **Android** 📱 | `eas build -p android --profile preview` |
-| **iOS** 🍎 | Requires Mac | `npm run ios` |
-| **Standalone** 📦 | EAS Build | `eas build` |
+Firebase config lives in `config/firebaseConfig.js`. Firestore rules should scope data to `request.auth.uid`.
 
 ---
 
-## 📊 Project Structure
+## Build & deploy
+
+| Target | Command / doc |
+|--------|----------------|
+| **Web (static)** | `npm run build:web` → output in `dist/` |
+| **Vercel** | [docs/DEPLOY_WEB.md](docs/DEPLOY_WEB.md) |
+| **Android APK** | `npm run build:apk` — [docs/APK_BUILD_AND_RELEASE.md](docs/APK_BUILD_AND_RELEASE.md) |
+| **AI Coach API** | `coach-api/` on Render — [docs/COACH_AI_SETUP.md](docs/COACH_AI_SETUP.md) |
+
+---
+
+## Project structure
 
 ```
 GymTracker/
-├── config/firebaseConfig.js      ← Firebase credentials
-├── screens/
-│   ├── LoginScreen.js            ← Google Sign-in
-│   ├── TodayScreen.js            ← Workout logger
-│   ├── HistoryScreen.js          ← Past workouts
-│   ├── ProgressScreen.js         ← Charts & analytics
-│   └── ExercisesScreen.js        ← Exercise library
-├── utils/firestore.js            ← Cloud sync + offline
-├── constants/data.js             ← Colors, exercises, plans
-└── App.js                        ← Navigation
+├── App.js                 # Entry, navigation, auth
+├── screens/               # Today, History, Progress, Exercises, Dashboard, Coach
+├── components/            # Shared UI
+├── utils/                 # Firestore, backup, coach RAG, exercise logic
+├── coach-api/             # Free Groq backend for AI Coach
+├── constants/             # Themes, exercises, coach config
+└── docs/                  # Setup, deploy, screenshots
 ```
 
 ---
 
-## 📚 Usage
+## Tech stack
 
-### **Log a Workout**
-1. Go to **Today** tab
-2. Click **"+ Exercise"**
-3. Select exercise (or create custom)
-4. Click **"ADD SET"** button
-5. Enter weight & reps
-6. Auto-saves to cloud ☁️
-
-### **View Progress**
-1. Go to **Progress** tab
-2. Select exercise from dropdown
-3. See max weight & volume charts
-4. Stats update in real-time
-
-### **Browse History**
-1. Go to **History** tab
-2. Click any date to expand
-3. View all exercises & sets from that day
+- **Expo 54** / React Native  
+- **Firebase** Auth + Firestore  
+- **React Navigation** (bottom tabs)  
+- **Groq** (LLM) + **Render** (coach API)  
+- **EAS Build** (Android APK)  
+- **Vercel** (web hosting)
 
 ---
 
-## 🔐 Security
+## Links
 
-- ✅ **Auth**: Google OAuth 2.0
-- ✅ **DB**: Firestore rules verify `request.auth.uid == userId`
-- ✅ **Transport**: HTTPS only
-- ✅ **Storage**: AsyncStorage (iOS Keychain, Android Keystore)
-
----
-
-## 🛠 Customization
-
-### **Add Exercises**
-Edit `constants/data.js`:
-```javascript
-export const PRESET_EXERCISES = [
-  { name: "Your Exercise", category: "Legs" },
-];
-```
-
-### **Add Plans**
-```javascript
-export const WORKOUT_PLANS = {
-  "🔥 Your Plan": ["Ex 1", "Ex 2"],
-};
-```
-
-### **Change Colors**
-```javascript
-export const COLORS = {
-  accent: "#00d4ff",
-  orange: "#ff6b2b",
-};
-```
+- **Repository:** https://github.com/HarshGupta-1708/GymTracker  
+- **APK releases:** https://github.com/HarshGupta-1708/GymTracker/releases  
+- **Issues / feedback:** GitHub Issues on the repo above
 
 ---
 
-## 🐛 Troubleshooting
+## License
 
-| Issue | Solution |
-|-------|----------|
-| Firebase not syncing | Check internet & Firestore rules |
-| Auth not working | Verify `firebaseConfig.js` credentials |
-| Build errors | `npm install` after `rm -rf node_modules` |
-| Port conflict | `PORT=3000 npm run web` |
-
----
-
-## 📚 Tech Stack
-
-- **Frontend**: React Native (Expo)
-- **Navigation**: React Navigation
-- **Backend**: Firebase (Auth + Firestore)
-- **Charts**: React Native Chart Kit
-- **Storage**: AsyncStorage + Firestore
-
----
-
-## 📖 Learn More
-
-- [Expo Docs](https://docs.expo.dev)
-- [Firebase Docs](https://firebase.google.com/docs)
-- [React Native Docs](https://reactnative.dev)
-
----
-
-**Jai Hind! Keep training! 💪**
+Private project — all rights reserved unless otherwise noted.

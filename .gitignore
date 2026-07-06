@@ -48,8 +48,15 @@ app-example
 
 # IDE
 .idea/
+.vscode/
 
 # Build artifacts
 *.apk
 *.aab
 *.ipa
+logcat*.txt
+application-*.apk
+gymtracker-*.apk
+
+# Expo example scaffold (removed from repo)
+app-example-template/
