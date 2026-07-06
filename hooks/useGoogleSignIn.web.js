@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import {
   GoogleAuthProvider,
-  getRedirectResult,
+  signInWithPopup,
   signInWithRedirect,
 } from "firebase/auth";
 import { auth } from "../config/firebaseConfig";
@@ -11,62 +11,59 @@ function currentHost() {
   return window.location.hostname;
 }
 
+function unauthorizedMessage() {
+  const host = currentHost();
+  return host
+    ? `Add "${host}" in Firebase → Authentication → Settings → Authorized domains.`
+    : "This domain is not authorized in Firebase.";
+}
+
 /**
- * Web: Firebase redirect sign-in (no popup blockers, no OAuth redirect_uri setup).
+ * Web: popup sign-in when allowed; redirect fallback if popup is blocked.
+ * Redirect completion runs in App.js via getRedirectResult on page load.
  */
 export function useGoogleSignIn() {
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const setErrorState = useCallback((msg) => {
     setError(msg);
   }, []);
 
-  useEffect(() => {
-    let cancelled = false;
-    getRedirectResult(auth)
-      .catch((err) => {
-        if (cancelled) return;
-        console.error("Google Sign-In redirect failed:", err);
-        if (err?.code === "auth/unauthorized-domain") {
-          const host = currentHost();
-          setError(
-            host
-              ? `Add "${host}" in Firebase → Authentication → Settings → Authorized domains.`
-              : "This domain is not authorized in Firebase.",
-          );
-        } else if (err?.code !== "auth/popup-closed-by-user") {
-          setError(err?.message || "Google Sign-In failed.");
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
   const signIn = useCallback(async () => {
+    let redirecting = false;
     try {
       setError(null);
       setLoading(true);
       const provider = new GoogleAuthProvider();
       provider.setCustomParameters({ prompt: "select_account" });
-      await signInWithRedirect(auth, provider);
-    } catch (err) {
-      console.error("Google Sign-In (web) failed:", err);
-      if (err?.code === "auth/unauthorized-domain") {
-        const host = currentHost();
-        setError(
-          host
-            ? `Add "${host}" in Firebase → Authentication → Settings → Authorized domains.`
-            : "This domain is not authorized in Firebase.",
+
+      try {
+        const result = await signInWithPopup(auth, provider);
+        console.info(
+          "[GymTracker Auth] Popup sign-in:",
+          result.user.email || result.user.uid,
         );
+      } catch (popupErr) {
+        if (popupErr?.code === "auth/popup-blocked") {
+          console.info("[GymTracker Auth] Popup blocked — using redirect");
+          await signInWithRedirect(auth, provider);
+          redirecting = true;
+          return;
+        }
+        throw popupErr;
+      }
+    } catch (err) {
+      console.error("[GymTracker Auth] Sign-in failed:", err?.code, err?.message);
+      if (err?.code === "auth/popup-closed-by-user") {
+        setError("Sign-in was cancelled.");
+      } else if (err?.code === "auth/unauthorized-domain") {
+        setError(unauthorizedMessage());
       } else {
         setError(err?.message || "Google Sign-In failed.");
       }
-      setLoading(false);
+    } finally {
+      if (!redirecting) setLoading(false);
     }
   }, []);
 

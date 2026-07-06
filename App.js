@@ -4,11 +4,12 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import Constants from "expo-constants";
 import { StatusBar } from "expo-status-bar";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { getRedirectResult, onAuthStateChanged, signOut } from "firebase/auth";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
     Alert,
     LogBox,
+    Platform,
     Text,
     TouchableOpacity,
     View
@@ -171,34 +172,71 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    AsyncStorage.getItem("gt_demo_session")
-      .then((isDemo) => {
+    let unsub;
+    let cancelled = false;
+
+    const loadDemoSession = async () => {
+      const data = await AsyncStorage.getItem("gt_workouts_local_demo-user");
+      if (data) setWorkouts(JSON.parse(data));
+      setWorkoutsLoading(false);
+    };
+
+    (async () => {
+      if (Platform.OS === "web") {
+        try {
+          const result = await getRedirectResult(auth);
+          if (result?.user) {
+            console.info(
+              "[GymTracker Auth] Redirect sign-in:",
+              result.user.email || result.user.uid,
+            );
+          }
+        } catch (err) {
+          console.error(
+            "[GymTracker Auth] Redirect failed:",
+            err?.code,
+            err?.message,
+          );
+        }
+      }
+
+      if (cancelled) return;
+
+      try {
+        const isDemo = await AsyncStorage.getItem("gt_demo_session");
+        if (cancelled) return;
+
         if (isDemo === "true") {
           auth.isDemo = true;
           setUser({ uid: "demo-user", displayName: "Demo Athlete" });
           setLoading(false);
           setSplashMessage("Loading your workouts...");
-          AsyncStorage.getItem("gt_workouts_local_demo-user")
-            .then((data) => {
-              if (data) setWorkouts(JSON.parse(data));
-              setWorkoutsLoading(false);
-            })
-            .catch(() => setWorkoutsLoading(false));
-        } else {
-          const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-            setUser(currentUser);
-            setLoading(false);
-          });
-          return unsubscribe;
+          await loadDemoSession();
+          return;
         }
-      })
-      .catch(() => {
-        const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
-          setUser(currentUser);
-          setLoading(false);
-        });
-        return unsubscribe;
+      } catch (err) {
+        console.warn("[GymTracker Auth] Demo session check failed:", err);
+      }
+
+      if (cancelled) return;
+
+      unsub = onAuthStateChanged(auth, (currentUser) => {
+        if (cancelled) return;
+        setUser(currentUser);
+        setLoading(false);
+        if (Platform.OS === "web") {
+          console.info(
+            "[GymTracker Auth] Session:",
+            currentUser?.email || currentUser?.uid || "none",
+          );
+        }
       });
+    })();
+
+    return () => {
+      cancelled = true;
+      unsub?.();
+    };
   }, []);
 
   useEffect(() => {

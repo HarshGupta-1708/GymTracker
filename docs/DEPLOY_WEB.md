@@ -13,17 +13,19 @@
 
 ## Google Sign-In on web
 
-Web uses **Firebase redirect** sign-in. No Google Cloud redirect URIs needed.
+Web uses Firebase **popup** sign-in (redirect fallback if popup is blocked).
 
-**Firebase → Authentication → Settings → Authorized domains** — add every URL you open the app from:
+**Firebase → Authentication → Settings → Authorized domains** — add every hostname you open the app from (e.g. `gym-tracker-flax-beta.vercel.app`).
 
-```
-gym-tracker-flax-beta.vercel.app
-```
+### Debug sign-in (browser)
 
-If you use another Vercel domain (e.g. an older `*.vercel.app` link), add that hostname too. The sign-in error message shows the exact domain to add.
-
-Optional: set a **custom domain** in Vercel so you only authorize one stable hostname.
+1. Open the site → **F12** (or right-click → Inspect)
+2. **Console** tab → filter `GymTracker Auth`
+3. Click **Sign in with Google** and watch for:
+   - `Popup sign-in:` = success
+   - `Redirect sign-in:` = success after page reload
+   - `Redirect failed:` or `Sign-in failed:` = copy the error code for troubleshooting
+4. **Network** tab → filter `identitytoolkit` or `google` for failed requests
 
 ## Architecture
 
