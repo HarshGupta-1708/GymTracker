@@ -2,7 +2,7 @@
 
 Cross-platform workout tracker built with **React Native (Expo)** — log sets, track progress, sync with **Firebase**, and get tips from a personal **AI Coach** powered by your own training history.
 
-**[Live demo (web)](https://gym-tracker-kdg4.vercel.app)** · **[Download Android APK](https://github.com/HarshGupta-1708/GymTracker/releases/latest)** · **[GitHub](https://github.com/HarshGupta-1708/GymTracker)**
+**[Live demo (web)](https://gym-tracker-flax-beta.vercel.app)** · **[Download Android APK](https://github.com/HarshGupta-1708/GymTracker/releases/latest)** · **[GitHub](https://github.com/HarshGupta-1708/GymTracker)**
 
 > **Web:** Sign in with Google. **Android:** install APK and use the same Google account — workout history syncs from the cloud.
 
@@ -66,11 +66,9 @@ npm run web
 
 | Target | How |
 |--------|-----|
-| **Web** | Push to `master` → Vercel auto-builds (see `vercel.json`) |
+| **Web** | Push to `master` → Vercel auto-builds (see `vercel.json`, [docs/DEPLOY_WEB.md](docs/DEPLOY_WEB.md)) |
 | **Android APK** | `npm run build:apk` — [docs/APK_BUILD_AND_RELEASE.md](docs/APK_BUILD_AND_RELEASE.md) |
 | **AI Coach API** | [docs/COACH_AI_SETUP.md](docs/COACH_AI_SETUP.md) |
-| **Web deploy help** | [docs/DEPLOY_WEB.md](docs/DEPLOY_WEB.md) |
-| **Web Google Sign-In** | [docs/GOOGLE_WEB_SIGNIN.md](docs/GOOGLE_WEB_SIGNIN.md) |
 
 ---
 

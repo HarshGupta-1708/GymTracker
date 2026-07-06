@@ -1,9 +1,7 @@
-import * as AuthSession from "expo-auth-session";
 import * as Google from "expo-auth-session/providers/google";
 import * as WebBrowser from "expo-web-browser";
 import { GoogleAuthProvider, signInWithCredential } from "firebase/auth";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Platform } from "react-native";
+import { useCallback, useEffect, useState } from "react";
 import { auth } from "../config/firebaseConfig";
 import {
   GOOGLE_ANDROID_CLIENT_ID,
@@ -17,28 +15,11 @@ export function useGoogleSignInWeb({ enabled = true } = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const redirectUri = useMemo(
-    () =>
-      AuthSession.makeRedirectUri({
-        scheme: "gymtracker",
-        path: "oauthredirect",
-      }),
-    [],
-  );
-
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: GOOGLE_WEB_CLIENT_ID,
     androidClientId: GOOGLE_ANDROID_CLIENT_ID,
     iosClientId: GOOGLE_IOS_CLIENT_ID,
-    redirectUri,
-    webClientId: GOOGLE_WEB_CLIENT_ID,
   });
-
-  useEffect(() => {
-    if (__DEV__ && enabled && Platform.OS === "web") {
-      console.log("[Auth] Web OAuth redirect URI:", redirectUri);
-    }
-  }, [redirectUri, enabled]);
 
   const signIn = useCallback(async () => {
     if (!enabled) return;
