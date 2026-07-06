@@ -37,13 +37,37 @@ You do **not** need to move Firebase or Render onto Vercel.
 
 ## Google Sign-In on web
 
-Google Cloud Console → Credentials → **Web client** → Authorized JavaScript origins:
+### Recommended: Firebase popup (Vercel production)
+
+The web build uses **Firebase `signInWithPopup`** (`hooks/useGoogleSignIn.web.js`) — no `redirect_uri_mismatch`.
+
+**Firebase Console** → **Authentication** → **Settings** → **Authorized domains** → add:
+
+```
+gym-tracker-kdg4.vercel.app
+```
+
+Also add any custom domain you use later.
+
+**Google Cloud** → Credentials → **Web client** → **Authorized JavaScript origins**:
 
 ```
 https://gym-tracker-kdg4.vercel.app
 ```
 
-Save, wait 5 minutes, try sign-in again.
+No redirect URI needed for Firebase popup (Firebase handles it).
+
+### If you still see `redirect_uri_mismatch` (Expo Go / old flow)
+
+Add these to **Web client** → **Authorized redirect URIs**:
+
+```
+https://gym-tracker-kdg4.vercel.app
+https://gym-tracker-kdg4.vercel.app/
+https://auth.expo.io/@harshgupta1708/gym-tracker
+```
+
+Check browser console for `[Auth] Web OAuth redirect URI:` and add that exact URL.
 
 ---
 
