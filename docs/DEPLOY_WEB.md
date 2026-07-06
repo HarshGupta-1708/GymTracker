@@ -13,19 +13,23 @@
 
 ## Google Sign-In on web
 
-Web uses Firebase **popup** sign-in (redirect fallback if popup is blocked).
+Web uses Firebase popup sign-in, with a Google Identity Services fallback if popups are blocked (no full-page redirect).
 
 **Firebase → Authentication → Settings → Authorized domains** — add every hostname you open the app from (e.g. `gym-tracker-flax-beta.vercel.app`).
 
+**One account works, another does not?** Google Cloud → **OAuth consent screen** → if status is **Testing**, only listed **Test users** can sign in. Add the other Gmail there, or publish the app to **In production**.
+
+**Google Cloud → Credentials → Web client** → **Authorized JavaScript origins** should include:
+`https://gym-tracker-flax-beta.vercel.app` and `https://gymtracker-1708.firebaseapp.com`
+
 ### Debug sign-in (browser)
 
-1. Open the site → **F12** (or right-click → Inspect)
-2. **Console** tab → filter `GymTracker Auth`
-3. Click **Sign in with Google** and watch for:
-   - `Popup sign-in:` = success
-   - `Redirect sign-in:` = success after page reload
-   - `Redirect failed:` or `Sign-in failed:` = copy the error code for troubleshooting
-4. **Network** tab → filter `identitytoolkit` or `google` for failed requests
+1. Open the site → **F12** → **Console** → filter `GymTracker Auth`
+2. Click **Sign in with Google**
+3. Success: `Popup sign-in:` or `GIS sign-in:` then `Session:`
+4. Failure: copy `Sign-in failed:` line (error code matters)
+
+Chrome **Issues** tab warnings about CSP or “intermediate websites” are normal on Vercel; they are not the login error itself.
 
 ## Architecture
 

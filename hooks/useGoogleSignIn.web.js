@@ -1,10 +1,7 @@
 import { useCallback, useState } from "react";
-import {
-  GoogleAuthProvider,
-  signInWithPopup,
-  signInWithRedirect,
-} from "firebase/auth";
+import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
 import { auth } from "../config/firebaseConfig";
+import { signInWithGoogleIdentity } from "../utils/googleIdentity.web";
 
 function currentHost() {
   if (typeof window === "undefined") return "";
@@ -18,9 +15,35 @@ function unauthorizedMessage() {
     : "This domain is not authorized in Firebase.";
 }
 
+function mapAuthError(err) {
+  const code = err?.code || "";
+  const message = String(err?.message || "");
+
+  if (code === "auth/popup-closed-by-user") {
+    return "Sign-in was cancelled.";
+  }
+  if (code === "auth/unauthorized-domain") {
+    return unauthorizedMessage();
+  }
+  if (code === "auth/popup-blocked") {
+    return "Popup blocked. Allow popups for this site in Chrome (lock icon → Site settings → Pop-ups).";
+  }
+  if (
+    message.includes("access_denied") ||
+    message.includes("org_internal") ||
+    code === "auth/operation-not-allowed"
+  ) {
+    return (
+      "This Google account cannot sign in yet. In Google Cloud Console → OAuth consent screen, " +
+      "add the account under Test users, or set Publishing status to In production."
+    );
+  }
+  return message || "Google Sign-In failed.";
+}
+
 /**
- * Web: popup sign-in when allowed; redirect fallback if popup is blocked.
- * Redirect completion runs in App.js via getRedirectResult on page load.
+ * Web: Firebase popup first; Google Identity Services if popup is blocked.
+ * Avoids redirect flow (broken when Chrome clears intermediate-site state).
  */
 export function useGoogleSignIn() {
   const [loading, setLoading] = useState(false);
@@ -31,7 +54,6 @@ export function useGoogleSignIn() {
   }, []);
 
   const signIn = useCallback(async () => {
-    let redirecting = false;
     try {
       setError(null);
       setLoading(true);
@@ -46,24 +68,17 @@ export function useGoogleSignIn() {
         );
       } catch (popupErr) {
         if (popupErr?.code === "auth/popup-blocked") {
-          console.info("[GymTracker Auth] Popup blocked — using redirect");
-          await signInWithRedirect(auth, provider);
-          redirecting = true;
+          console.info("[GymTracker Auth] Popup blocked — using Google Identity Services");
+          await signInWithGoogleIdentity();
           return;
         }
         throw popupErr;
       }
     } catch (err) {
       console.error("[GymTracker Auth] Sign-in failed:", err?.code, err?.message);
-      if (err?.code === "auth/popup-closed-by-user") {
-        setError("Sign-in was cancelled.");
-      } else if (err?.code === "auth/unauthorized-domain") {
-        setError(unauthorizedMessage());
-      } else {
-        setError(err?.message || "Google Sign-In failed.");
-      }
+      setError(mapAuthError(err));
     } finally {
-      if (!redirecting) setLoading(false);
+      setLoading(false);
     }
   }, []);
 
