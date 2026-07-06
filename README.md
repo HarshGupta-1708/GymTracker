@@ -19,7 +19,6 @@ Cross-platform workout tracker built with **React Native (Expo)** — log sets, 
 <p align="center">
   <img src="./docs/screenshots/5.jpeg" alt="Screenshot 5" width="180" />
   <img src="./docs/screenshots/6.jpeg" alt="Screenshot 6" width="180" />
-  <img src="./docs/screenshots/7.jpeg" alt="Screenshot 7" width="180" />
 </p>
 
 ---
