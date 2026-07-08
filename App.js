@@ -562,6 +562,8 @@ function MainApp({
         fontSize: 10,
         fontWeight: "600",
         lineHeight: 13,
+        height: 13,
+        flexShrink: 0,
         marginTop: 2,
       },
       headerShown: false,
