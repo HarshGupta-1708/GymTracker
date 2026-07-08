@@ -15,7 +15,7 @@ import {
     View
 } from "react-native";
 import "react-native-get-random-values";
-import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import AppSplash from "./components/AppSplash";
 import OnboardingTour from "./components/OnboardingTour";
 import WhatsNewModal from "./components/WhatsNewModal";
@@ -480,6 +480,7 @@ export default function App() {
 
   return (
     <ThemeProvider themeId={themeId}>
+      <SafeAreaProvider>
       {showSplash ? (
         <AppSplash message={splashMessage} />
       ) : (
@@ -506,6 +507,7 @@ export default function App() {
           setWorkoutsLoading={setWorkoutsLoading}
         />
       )}
+      </SafeAreaProvider>
     </ThemeProvider>
   );
 }
@@ -533,36 +535,38 @@ function MainApp({
   setWorkoutsLoading,
 }) {
   const { colors: C } = useTheme();
+  const insets = useSafeAreaInsets();
 
   const tabScreenOptions = useMemo(
     () => ({
-      // No fixed height/paddingBottom: react-navigation adds the bottom
-      // safe-area inset automatically (gesture bars on Nothing Phone, iPhone, etc).
+      // Explicit height = content (56) + the device's bottom inset, so icons
+      // and labels are never squeezed on web or behind gesture bars on phones.
       tabBarStyle: {
         backgroundColor: C.tabBar || C.card,
         borderTopColor: C.border,
         borderTopWidth: 1,
-        paddingTop: 4,
+        height: 56 + insets.bottom,
+        paddingTop: 6,
+        paddingBottom: Math.max(insets.bottom, 6),
       },
       tabBarActiveTintColor: C.accent,
       tabBarInactiveTintColor: C.muted,
       tabBarLabelStyle: {
         fontSize: 10,
         fontWeight: "600",
-        marginTop: 0,
+        marginTop: 2,
       },
       headerShown: false,
       tabBarHideOnKeyboard: true,
       lazy: true,
       detachInactiveScreens: true,
     }),
-    [C],
+    [C, insets.bottom],
   );
 
   return (
     <ErrorBoundary>
-      <SafeAreaProvider>
-        <StatusBar style="light" backgroundColor={C.bg} />
+      <StatusBar style="light" backgroundColor={C.bg} />
         <NavigationContainer>
           {!user ? (
             <SafeAreaView
@@ -773,7 +777,6 @@ function MainApp({
             </Tab.Navigator>
           )}
         </NavigationContainer>
-      </SafeAreaProvider>
     </ErrorBoundary>
   );
 }
