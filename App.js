@@ -17,6 +17,7 @@ import {
 import "react-native-get-random-values";
 import { SafeAreaProvider, SafeAreaView } from "react-native-safe-area-context";
 import AppSplash from "./components/AppSplash";
+import OnboardingTour from "./components/OnboardingTour";
 import WhatsNewModal from "./components/WhatsNewModal";
 import { auth } from "./config/firebaseConfig";
 import { COLORS, PRESET_EXERCISES, todayStr } from "./constants/data";
@@ -49,6 +50,7 @@ import {
     removeExerciseFromWorkouts,
     renameExerciseInWorkouts,
 } from "./utils/exerciseManagement";
+import { checkCoachApiHealth } from "./utils/coachApi";
 
 LogBox.ignoreLogs([
   "Non-serializable values were found in the navigation state",
@@ -145,6 +147,7 @@ export default function App() {
   const [splashMessage, setSplashMessage] = useState("Loading GYM TRACKER...");
   const [exercises, setExercises] = useState(PRESET_EXERCISES);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const [showRestoreHint, setShowRestoreHint] = useState(false);
   const [themeId, setThemeId] = useState(DEFAULT_THEME_ID);
 
@@ -248,6 +251,14 @@ export default function App() {
     }
   }, [user]);
 
+  // Warm up the Coach API as soon as the user is in, so a free-tier
+  // server that went to sleep is already awake when they open the Coach tab.
+  useEffect(() => {
+    if (user) {
+      checkCoachApiHealth().catch(() => {});
+    }
+  }, [user]);
+
   useEffect(() => {
     if (!user) return undefined;
 
@@ -319,14 +330,29 @@ export default function App() {
 
   useEffect(() => {
     if (!user || workoutsLoading) return;
-    AsyncStorage.getItem("gt_last_seen_version").then((seen) => {
-      if (seen !== APP_VERSION) setShowWhatsNew(true);
-    });
+    AsyncStorage.multiGet(["gt_last_seen_version", "gt_onboarding_done"]).then(
+      ([[, seen], [, onboarded]]) => {
+        if (!onboarded) {
+          // Brand-new install: show the guided tour instead of What's New.
+          setShowOnboarding(true);
+        } else if (seen !== APP_VERSION) {
+          setShowWhatsNew(true);
+        }
+      },
+    );
   }, [user, workoutsLoading]);
 
   const handleWhatsNewDismiss = async () => {
     await AsyncStorage.setItem("gt_last_seen_version", APP_VERSION);
     setShowWhatsNew(false);
+  };
+
+  const handleOnboardingDone = async () => {
+    await AsyncStorage.multiSet([
+      ["gt_onboarding_done", "true"],
+      ["gt_last_seen_version", APP_VERSION],
+    ]);
+    setShowOnboarding(false);
   };
 
   const handleWorkoutsChange = useCallback((nextWorkouts) => {
@@ -465,6 +491,8 @@ export default function App() {
           workouts={workouts}
           workoutsLoading={workoutsLoading}
           showWhatsNew={showWhatsNew}
+          showOnboarding={showOnboarding}
+          onOnboardingDone={handleOnboardingDone}
           showRestoreHint={showRestoreHint}
           onDismissRestoreHint={() => setShowRestoreHint(false)}
           onWhatsNewDismiss={handleWhatsNewDismiss}
@@ -490,6 +518,8 @@ function MainApp({
   workouts,
   workoutsLoading,
   showWhatsNew,
+  showOnboarding,
+  onOnboardingDone,
   showRestoreHint,
   onDismissRestoreHint,
   onWhatsNewDismiss,
@@ -506,13 +536,13 @@ function MainApp({
 
   const tabScreenOptions = useMemo(
     () => ({
+      // No fixed height/paddingBottom: react-navigation adds the bottom
+      // safe-area inset automatically (gesture bars on Nothing Phone, iPhone, etc).
       tabBarStyle: {
         backgroundColor: C.tabBar || C.card,
         borderTopColor: C.border,
         borderTopWidth: 1,
-        paddingBottom: 4,
         paddingTop: 4,
-        height: 70,
       },
       tabBarActiveTintColor: C.accent,
       tabBarInactiveTintColor: C.muted,
@@ -593,6 +623,10 @@ function MainApp({
                       visible={showWhatsNew}
                       version={APP_VERSION}
                       onDismiss={onWhatsNewDismiss}
+                    />
+                    <OnboardingTour
+                      visible={showOnboarding}
+                      onDone={onOnboardingDone}
                     />
                   </SafeAreaView>
                 )}

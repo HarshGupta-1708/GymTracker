@@ -4,6 +4,7 @@ import {
     ActivityIndicator,
     Alert,
     Dimensions,
+    KeyboardAvoidingView,
     Modal,
     Platform,
     ScrollView,
@@ -13,7 +14,7 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { CATEGORIES, CATEGORY_COLORS, PRESET_EXERCISES, WORKOUT_PLANS, prettyDate, toDateStr, todayStr } from "../constants/data";
+import { CATEGORIES, CATEGORY_COLORS, PRESET_EXERCISES, WORKOUT_PLANS, prettyDate, shortDate, toDateStr, todayStr } from "../constants/data";
 import CustomExerciseForm from "../components/CustomExerciseForm";
 import { useTheme } from "../context/ThemeContext";
 import { estimateKcal, saveWorkout } from "../utils/firestore";
@@ -115,7 +116,8 @@ export default function TodayScreen({
   };
 
   const removeEx = async (name) => {
-    await updWk({ ...wk, exs: wk.exs.filter((e) => e.name !== name) });
+    const latestWk = workoutsRef.current[date] || { exs: [] };
+    await updWk({ ...latestWk, exs: latestWk.exs.filter((e) => e.name !== name) });
   };
 
   const copyWorkoutFrom = async (fromDate) => {
@@ -161,9 +163,14 @@ export default function TodayScreen({
   const openAddSet = (name) => {
     const exercise = exLib.find((e) => e.name === name);
     const fields = getExerciseFields(exercise || { name, category: "Custom" });
-    const allSets = Object.values(workouts).flatMap((w) =>
-      (w.exs || []).filter((e) => e.name === name).flatMap((e) => e.sets),
-    );
+    // Sort by date so the prefill really is the most recent set logged.
+    const allSets = Object.keys(workouts)
+      .sort()
+      .flatMap((d) =>
+        (workouts[d]?.exs || [])
+          .filter((e) => e.name === name)
+          .flatMap((e) => e.sets || []),
+      );
     const last = allSets[allSets.length - 1];
     const initial = {};
     fields.forEach((f) => {
@@ -223,9 +230,10 @@ export default function TodayScreen({
   };
 
   const removeSet = async (exName, idx) => {
+    const latestWk = workoutsRef.current[date] || { exs: [] };
     await updWk({
-      ...wk,
-      exs: wk.exs.map((e) =>
+      ...latestWk,
+      exs: latestWk.exs.map((e) =>
         e.name === exName
           ? { ...e, sets: e.sets.filter((_, i) => i !== idx) }
           : e,
@@ -262,6 +270,33 @@ export default function TodayScreen({
       setDate(toDateStr(selectedDate));
     }
   };
+
+  // For every exercise logged today, find the last 3 PREVIOUS sessions
+  // (any earlier date where that exact exercise was logged with sets),
+  // so the user can see what weight/reps they did last time.
+  const prevSessionsByExercise = useMemo(() => {
+    const priorDates = Object.keys(workouts)
+      .filter((d) => d < date)
+      .sort()
+      .reverse();
+    const map = {};
+    (workouts[date]?.exs || []).forEach((ex) => {
+      const sessions = [];
+      for (const d of priorDates) {
+        const found = (workouts[d]?.exs || []).find((e) => e.name === ex.name);
+        if (found?.sets?.length) {
+          sessions.push({
+            date: d,
+            dayTitle: workouts[d]?.dayTitle || "",
+            sets: found.sets,
+          });
+          if (sessions.length === 3) break;
+        }
+      }
+      map[ex.name] = sessions;
+    });
+    return map;
+  }, [workouts, date]);
 
   const allMaxW = (exName) =>
     Object.values(workouts).flatMap((w) =>
@@ -407,6 +442,7 @@ export default function TodayScreen({
       {/* Exercises List */}
       <ScrollView
         style={styles.scrollContent}
+        contentContainerStyle={styles.scrollInner}
         showsVerticalScrollIndicator={false}
       >
         {wk.exs.length === 0 ? (
@@ -445,6 +481,7 @@ export default function TodayScreen({
                   color={color}
                   fields={fields}
                   isPR={isPR}
+                  prevSessions={prevSessionsByExercise[ex.name] || []}
                   onAddSet={() => openAddSet(ex.name)}
                   onRemoveEx={() => removeEx(ex.name)}
                   onRemoveSet={(idx) => removeSet(ex.name, idx)}
@@ -594,12 +631,74 @@ function StatCard({ label, value, color, styles }) {
   );
 }
 
+function formatPrevSet(fields, set) {
+  const present = (fields || []).filter((f) => {
+    const v = set[f.key];
+    return v !== undefined && v !== null && v !== "";
+  });
+  if (!present.length) return "0 × 0";
+
+  // Plain weight+reps exercises get the classic compact "60kg × 8".
+  const onlyWeightReps = present.every((f) => f.key === "w" || f.key === "r");
+  if (onlyWeightReps) {
+    const w = set.w !== undefined ? formatSetFieldValue({ key: "w", unit: "kg" }, set.w) : "BW";
+    return `${w} × ${set.r ?? 0}`;
+  }
+
+  // Exercises with extra/custom fields get labelled values so numbers
+  // are never ambiguous, e.g. "Weight: 12kg · Incline: 30° · Speed: 8".
+  return present
+    .map((f) => `${f.label}: ${formatSetFieldValue(f, set[f.key])}`)
+    .join(" · ");
+}
+
+function PrevSessionsStrip({ sessions, fields, color, styles, C }) {
+  if (!sessions.length) {
+    return (
+      <View style={styles.prevStripEmpty}>
+        <MaterialCommunityIcons name="history" size={12} color={C.muted} />
+        <Text style={styles.prevEmptyText}>No previous record · 0 × 0</Text>
+      </View>
+    );
+  }
+  return (
+    <View style={styles.prevStripWrap}>
+      <Text style={styles.prevStripLabel}>LAST {sessions.length} SESSION{sessions.length > 1 ? "S" : ""}</Text>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ gap: 8, paddingRight: 12 }}
+      >
+        {sessions.map((s) => {
+          const lastTime = s.sets[s.sets.length - 1]?.t || "";
+          return (
+            <View key={s.date} style={[styles.prevCard, { borderLeftColor: color }]}>
+              <Text style={styles.prevCardDate} numberOfLines={1}>
+                {shortDate(s.date)}{lastTime ? ` · ${lastTime}` : ""}
+              </Text>
+              {s.sets.slice(0, 4).map((set, idx) => (
+                <Text key={idx} style={styles.prevCardSet} numberOfLines={2}>
+                  {idx + 1}. {formatPrevSet(fields, set)}
+                </Text>
+              ))}
+              {s.sets.length > 4 && (
+                <Text style={styles.prevCardMore}>+{s.sets.length - 4} more sets</Text>
+              )}
+            </View>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
 function ExerciseCard({
   ex,
   cat,
   color,
   fields,
   isPR,
+  prevSessions = [],
   onAddSet,
   onRemoveEx,
   onRemoveSet,
@@ -645,6 +744,14 @@ function ExerciseCard({
         </View>
       </View>
 
+      <PrevSessionsStrip
+        sessions={prevSessions}
+        fields={displayFields}
+        color={color}
+        styles={styles}
+        C={C}
+      />
+
       {ex.sets.length > 0 && (
         <View style={styles.setsContainer}>
           {ex.sets.map((set, i) => {
@@ -665,19 +772,20 @@ function ExerciseCard({
               >
                 <View style={styles.setBlockHeader}>
                   <Text style={styles.setNumber}>Set {i + 1}</Text>
-                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                    <Text style={styles.setTime}>{set.t}</Text>
-                    <TouchableOpacity
-                      onPress={() => onRemoveSet(i)}
-                      style={[styles.iconBtn, { opacity: 0.5 }]}
-                    >
-                      <MaterialCommunityIcons
-                        name="trash-can"
-                        size={14}
-                        color={C.muted}
-                      />
-                    </TouchableOpacity>
-                  </View>
+                  <Text style={styles.setTimeText} numberOfLines={1}>
+                    {set.t}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => onRemoveSet(i)}
+                    style={styles.deleteSetBtn}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                  >
+                    <MaterialCommunityIcons
+                      name="trash-can-outline"
+                      size={16}
+                      color={C.error || C.muted}
+                    />
+                  </TouchableOpacity>
                 </View>
                 <View style={styles.setFieldsGrid}>
                   {displayFields.map((f) => (
@@ -765,7 +873,10 @@ function AddSetModal({
   const fields = getExerciseFields(exercise || { name: exerciseName, category: "Custom" });
   return (
     <Modal transparent animationType="slide" visible>
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView
+        style={styles.modalOverlay}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>ADD SET</Text>
@@ -804,7 +915,7 @@ function AddSetModal({
             <Text style={styles.buttonTextPrimary}>SAVE SET</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
@@ -1290,8 +1401,11 @@ const createStyles = (C) => StyleSheet.create({
   },
   scrollContent: {
     flex: 1,
+  },
+  scrollInner: {
     paddingHorizontal: 12,
     paddingVertical: 12,
+    paddingBottom: 48,
   },
   exerciseCard: {
     backgroundColor: C.card,
@@ -1340,9 +1454,25 @@ const createStyles = (C) => StyleSheet.create({
   },
   setBlockHeader: {
     flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
     marginBottom: 6,
+    paddingRight: 2,
+  },
+  setTimeText: {
+    flex: 1,
+    textAlign: "right",
+    fontSize: 10,
+    color: C.muted,
+    fontFamily: "monospace",
+    marginRight: 6,
+  },
+  deleteSetBtn: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: `${C.muted}12`,
   },
   setFieldsGrid: {
     flexDirection: "row",
@@ -1379,7 +1509,7 @@ const createStyles = (C) => StyleSheet.create({
     alignItems: "center",
   },
   setNumber: {
-    width: 28,
+    minWidth: 36,
     color: C.muted,
     fontSize: 10,
     fontWeight: "700",
@@ -1412,6 +1542,60 @@ const createStyles = (C) => StyleSheet.create({
     fontSize: 10,
     color: C.muted,
     fontFamily: "monospace",
+  },
+  prevStripWrap: {
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 4,
+  },
+  prevStripLabel: {
+    color: C.muted,
+    fontSize: 8,
+    fontWeight: "800",
+    letterSpacing: 1,
+    marginBottom: 6,
+  },
+  prevCard: {
+    backgroundColor: C.surface,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderLeftWidth: 3,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    minWidth: 110,
+    maxWidth: 220,
+  },
+  prevCardDate: {
+    color: C.text,
+    fontSize: 10,
+    fontWeight: "800",
+    marginBottom: 4,
+  },
+  prevCardSet: {
+    color: C.muted,
+    fontSize: 11,
+    fontWeight: "600",
+    marginBottom: 1,
+  },
+  prevCardMore: {
+    color: C.muted,
+    fontSize: 9,
+    fontStyle: "italic",
+    marginTop: 2,
+  },
+  prevStripEmpty: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    paddingBottom: 2,
+  },
+  prevEmptyText: {
+    color: C.muted,
+    fontSize: 10,
+    fontWeight: "600",
   },
   addSetBtn: {
     margin: 12,

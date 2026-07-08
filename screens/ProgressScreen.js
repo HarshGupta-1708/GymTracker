@@ -37,6 +37,15 @@ export default function ProgressScreen({ workouts, loading }) {
 
   const activeEx = selectedEx || exWithData[0];
 
+  // Epley formula — the standard estimate used in strength research:
+  // 1RM ≈ weight × (1 + reps / 30). Lets you compare strength across
+  // different rep schemes (5×80kg vs 10×70kg etc).
+  const epley1RM = (w, r) => {
+    if (!(w > 0)) return 0;
+    if (!(r > 0)) return w;
+    return w * (1 + r / 30);
+  };
+
   const progData = useMemo(() => {
     if (!activeEx) return [];
     
@@ -50,20 +59,46 @@ export default function ProgressScreen({ workouts, loading }) {
         return {
           date: shortDate(d),
           maxW: Math.max(...strengthSets.map(s => s.w || 0)),
+          e1rm: Math.round(Math.max(...strengthSets.map(s => epley1RM(s.w || 0, s.r || 0)))),
           vol: strengthSets.reduce((s, x) => s + (x.w || 0) * (x.r || 0), 0),
         };
       });
   }, [activeEx, workouts]);
 
-  // Aggregate stats
-  const allSets = Object.values(workouts).flatMap(w =>
-    (w.exs || []).flatMap(e => e.sets)
-  );
+  // Weekly training load: this week vs last week (progressive overload check)
+  const weeklyStats = useMemo(() => {
+    const toStr = (d) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const now = new Date();
+    const thisStart = new Date(now);
+    thisStart.setDate(now.getDate() - now.getDay());
+    const lastStart = new Date(thisStart);
+    lastStart.setDate(thisStart.getDate() - 7);
+    const thisStartStr = toStr(thisStart);
+    const lastStartStr = toStr(lastStart);
+
+    let thisVol = 0;
+    let lastVol = 0;
+    let thisSets = 0;
+    Object.entries(workouts || {}).forEach(([d, w]) => {
+      (w.exs || []).forEach((e) =>
+        (e.sets || []).forEach((s) => {
+          const vol = (s.w || 0) * (s.r || 0);
+          if (d >= thisStartStr) {
+            thisVol += vol;
+            thisSets += 1;
+          } else if (d >= lastStartStr) {
+            lastVol += vol;
+          }
+        }),
+      );
+    });
+    const delta = lastVol > 0 ? Math.round(((thisVol - lastVol) / lastVol) * 100) : null;
+    return { thisVol: Math.round(thisVol), thisSets, delta };
+  }, [workouts]);
 
   const stats = {
     sessions: Object.values(workouts).filter(w => w.exs?.length).length,
-    totalSets: allSets.length,
-    totalVolume: Math.round(allSets.reduce((s, x) => s + (x.w || 0) * (x.r || 0), 0)),
   };
 
   if (loading) {
@@ -97,20 +132,28 @@ export default function ProgressScreen({ workouts, loading }) {
         <StatBox
           styles={styles}
           icon="check-circle"
-          label="TOTAL SETS"
-          value={stats.totalSets}
+          label="SETS THIS WEEK"
+          value={weeklyStats.thisSets}
           color={C.orange}
         />
         <StatBox
           styles={styles}
           icon="weight-kilogram"
-          label="TOTAL VOLUME"
-          value={stats.totalVolume}
-          color={C.green}
+          label={
+            weeklyStats.delta === null
+              ? "VOLUME THIS WEEK (weight × reps)"
+              : `VOLUME THIS WEEK · ${weeklyStats.delta >= 0 ? "▲" : "▼"} ${Math.abs(weeklyStats.delta)}% vs last week`
+          }
+          value={`${weeklyStats.thisVol} kg`}
+          color={weeklyStats.delta !== null && weeklyStats.delta < 0 ? C.orange : C.green}
         />
       </View>
 
-      <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollContent}
+        contentContainerStyle={styles.scrollInner}
+        showsVerticalScrollIndicator={false}
+      >
         {exWithData.length === 0 ? (
           <View style={styles.emptyState}>
             <MaterialCommunityIcons name="chart-line" size={60} color={`${C.muted}40`} />
@@ -151,15 +194,23 @@ export default function ProgressScreen({ workouts, loading }) {
               <View onLayout={handleLayout}>
                 {/* Max Weight Chart */}
                 <View style={styles.chartCard}>
-                  <Text style={styles.chartTitle}>📈 MAX WEIGHT PROGRESSION (kg)</Text>
+                  <Text style={styles.chartTitle}>📈 STRENGTH TREND (kg)</Text>
                   <LineChart
                     data={{
                       labels: progData.map(d => d.date),
-                      datasets: [{
-                        data: progData.map(d => d.maxW),
-                        strokeWidth: 2,
-                        color: () => C.accent,
-                      }],
+                      datasets: [
+                        {
+                          data: progData.map(d => d.maxW),
+                          strokeWidth: 2,
+                          color: () => C.accent,
+                        },
+                        {
+                          data: progData.map(d => d.e1rm),
+                          strokeWidth: 2,
+                          color: () => C.gold,
+                        },
+                      ],
+                      legend: ["Max weight", "Est. 1RM"],
                     }}
                     width={chartWidth}
                     height={220}
@@ -213,29 +264,45 @@ export default function ProgressScreen({ workouts, loading }) {
                 <View style={styles.section}>
                   <Text style={styles.sectionLabel}>STATS FOR {activeEx}{''}</Text>
                   {progData.length > 0 && (
-                    <View style={styles.statsGrid}>
-                      <StatCard
-                        styles={styles}
-                        icon="trending-up"
-                        label="Personal Best"
-                        value={`${Math.max(...progData.map(d => d.maxW))}kg`}
-                        color={C.gold}
-                      />
-                      <StatCard
-                        styles={styles}
-                        icon="calendar-check"
-                        label="Sessions"
-                        value={progData.length}
-                        color={C.accent}
-                      />
-                      <StatCard
-                        styles={styles}
-                        icon="chart-bell-curve"
-                        label="Avg Volume"
-                        value={`${Math.round(progData.reduce((s, d) => s + d.vol, 0) / progData.length)}`}
-                        color={C.green}
-                      />
-                    </View>
+                    <>
+                      <View style={styles.statsGrid}>
+                        <StatCard
+                          styles={styles}
+                          icon="arm-flex"
+                          label="Est. 1RM (Epley)"
+                          value={`${Math.max(...progData.map(d => d.e1rm))}kg`}
+                          color={C.gold}
+                        />
+                        <StatCard
+                          styles={styles}
+                          icon="trending-up"
+                          label="Heaviest Set"
+                          value={`${Math.max(...progData.map(d => d.maxW))}kg`}
+                          color={C.accent}
+                        />
+                        <StatCard
+                          styles={styles}
+                          icon="fire"
+                          label="Best Session Vol"
+                          value={`${Math.max(...progData.map(d => d.vol))}kg`}
+                          color={C.orange}
+                        />
+                        <StatCard
+                          styles={styles}
+                          icon="calendar-check"
+                          label="Sessions Logged"
+                          value={progData.length}
+                          color={C.green}
+                        />
+                      </View>
+                      <Text style={styles.explainerText}>
+                        Est. 1RM = weight × (1 + reps ÷ 30), the Epley formula used in
+                        strength research. It lets you compare sessions with different
+                        rep ranges. Session volume (weight × reps) is your total training
+                        load — aim to increase it gradually week over week (progressive
+                        overload).
+                      </Text>
+                    </>
                   )}
                 </View>
               </View>
@@ -339,8 +406,11 @@ const createStyles = (C) => StyleSheet.create({
   },
   scrollContent: {
     flex: 1,
+  },
+  scrollInner: {
     paddingHorizontal: 12,
     paddingVertical: 12,
+    paddingBottom: 24,
   },
   emptyState: {
     alignItems: 'center',
@@ -407,10 +477,12 @@ const createStyles = (C) => StyleSheet.create({
   },
   statsGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
   statCardBox: {
-    flex: 1,
+    flexBasis: '47%',
+    flexGrow: 1,
     backgroundColor: C.surface,
     borderRadius: 10,
     padding: 12,
@@ -437,5 +509,13 @@ const createStyles = (C) => StyleSheet.create({
     fontWeight: '700',
     letterSpacing: 0.5,
     textAlign: 'center',
+  },
+  explainerText: {
+    color: C.muted,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: 12,
+    paddingHorizontal: 2,
+    paddingBottom: 24,
   },
 });

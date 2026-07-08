@@ -5,7 +5,9 @@ import {
   Alert,
   FlatList,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -23,10 +25,15 @@ import { useTheme } from "../context/ThemeContext";
 import { askCoach, checkCoachApiHealth } from "../utils/coachApi";
 import {
   clearCoachChat,
+  createChatSession,
   createMessage,
+  deleteChatSession,
+  getActiveSessionId,
   getDailyQuestionCount,
+  listChatSessions,
   loadCoachMessages,
   saveCoachMessages,
+  setActiveSessionId,
 } from "../utils/coachChat";
 import { listenUserSettings } from "../utils/firestore";
 
@@ -45,27 +52,44 @@ export default function CoachScreen({ workouts = {}, exercises = [] }) {
   });
   const [usageCount, setUsageCount] = useState(0);
   const [apiStatus, setApiStatus] = useState({ ok: true, mode: COACH_API_URL ? "cloud" : "local" });
+  const [sessions, setSessions] = useState([]);
+  const [activeSession, setActiveSession] = useState("default");
+  const [showHistory, setShowHistory] = useState(false);
+
+  const WELCOME_TEXT =
+    "Hey! I'm your AI Coach 🏋️\n\nAsk anything about YOUR workouts — progression, what to train today, weekly goals, form tips, or diet basics.\n\nTap a quick prompt below or type your question.";
 
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const [saved, count, health] = await Promise.all([
-        loadCoachMessages(),
+      const [sessionList, savedActiveId, count, health] = await Promise.all([
+        listChatSessions(),
+        getActiveSessionId(),
         getDailyQuestionCount(),
         checkCoachApiHealth(),
       ]);
       if (!mounted) return;
-      if (saved.length === 0) {
-        setMessages([
-          createMessage(
-            "assistant",
-            "Hey! I'm your AI Coach 🏋️\n\nAsk anything about YOUR workouts — progression, what to train today, weekly goals, form tips, or diet basics.\n\nTap a quick prompt below or type your question.",
-            { welcome: true },
-          ),
-        ]);
-      } else {
-        setMessages(saved);
+
+      let list = sessionList;
+      let activeId = savedActiveId && list.some((s) => s.id === savedActiveId)
+        ? savedActiveId
+        : list[0]?.id;
+      if (!activeId) {
+        const created = await createChatSession();
+        list = [created];
+        activeId = created.id;
       }
+
+      const saved = await loadCoachMessages(activeId);
+      if (!mounted) return;
+
+      setSessions(list);
+      setActiveSession(activeId);
+      setMessages(
+        saved.length === 0
+          ? [createMessage("assistant", WELCOME_TEXT, { welcome: true })]
+          : saved,
+      );
       setUsageCount(count);
       setApiStatus(health);
       setBooting(false);
@@ -75,16 +99,66 @@ export default function CoachScreen({ workouts = {}, exercises = [] }) {
     };
   }, []);
 
+  const openHistory = async () => {
+    setSessions(await listChatSessions());
+    setShowHistory(true);
+  };
+
+  const switchSession = async (sessionId) => {
+    if (sessionId === activeSession) {
+      setShowHistory(false);
+      return;
+    }
+    const saved = await loadCoachMessages(sessionId);
+    await setActiveSessionId(sessionId);
+    setActiveSession(sessionId);
+    setMessages(
+      saved.length === 0
+        ? [createMessage("assistant", WELCOME_TEXT, { welcome: true })]
+        : saved,
+    );
+    setShowHistory(false);
+  };
+
+  const startNewChat = async () => {
+    const session = await createChatSession();
+    setSessions(await listChatSessions());
+    setActiveSession(session.id);
+    setMessages([createMessage("assistant", WELCOME_TEXT, { welcome: true })]);
+    setShowHistory(false);
+  };
+
+  const removeSession = (sessionId) => {
+    Alert.alert("Delete chat?", "This conversation will be removed from this device.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "Delete",
+        style: "destructive",
+        onPress: async () => {
+          const next = await deleteChatSession(sessionId);
+          setSessions(next);
+          if (sessionId === activeSession) {
+            if (next.length > 0) {
+              await switchSession(next[0].id);
+            } else {
+              await startNewChat();
+            }
+          }
+        },
+      },
+    ]);
+  };
+
   useEffect(() => {
     const unsub = listenUserSettings(setSettings);
     return unsub;
   }, []);
 
   useEffect(() => {
-    if (messages.length) {
-      saveCoachMessages(messages);
+    if (messages.length && activeSession) {
+      saveCoachMessages(messages, activeSession);
     }
-  }, [messages]);
+  }, [messages, activeSession]);
 
   const sendMessage = useCallback(
     async ({ text = input, quickPromptId = null } = {}) => {
@@ -143,13 +217,13 @@ export default function CoachScreen({ workouts = {}, exercises = [] }) {
   );
 
   const handleClear = () => {
-    Alert.alert("Clear chat?", "This removes coach chat history on this device.", [
+    Alert.alert("Clear chat?", "This removes the current conversation on this device.", [
       { text: "Cancel", style: "cancel" },
       {
         text: "Clear",
         style: "destructive",
         onPress: async () => {
-          await clearCoachChat();
+          await clearCoachChat(activeSession);
           setMessages([
             createMessage("assistant", "Chat cleared. What do you want to work on today?", { welcome: true }),
           ]);
@@ -203,9 +277,17 @@ export default function CoachScreen({ workouts = {}, exercises = [] }) {
                 : "API offline · using local data"}
           </Text>
         </View>
-        <TouchableOpacity onPress={handleClear} style={styles.iconBtn}>
-          <MaterialCommunityIcons name="delete-outline" size={20} color={C.muted} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: "row", gap: 8 }}>
+          <TouchableOpacity onPress={startNewChat} style={styles.iconBtn}>
+            <MaterialCommunityIcons name="chat-plus-outline" size={20} color={C.accent} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={openHistory} style={styles.iconBtn}>
+            <MaterialCommunityIcons name="history" size={20} color={C.muted} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleClear} style={styles.iconBtn}>
+            <MaterialCommunityIcons name="delete-outline" size={20} color={C.muted} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.usageBar}>
@@ -268,6 +350,69 @@ export default function CoachScreen({ workouts = {}, exercises = [] }) {
           <MaterialCommunityIcons name="send" size={20} color="#000" />
         </TouchableOpacity>
       </View>
+
+      {/* Chat history sidebar */}
+      <Modal visible={showHistory} transparent animationType="slide">
+        <View style={styles.historyOverlay}>
+          <View style={styles.historyPanel}>
+            <View style={styles.historyHeader}>
+              <Text style={styles.historyTitle}>CHAT HISTORY</Text>
+              <TouchableOpacity onPress={() => setShowHistory(false)}>
+                <MaterialCommunityIcons name="close" size={22} color={C.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity style={styles.newChatBtn} onPress={startNewChat}>
+              <MaterialCommunityIcons name="plus" size={16} color="#000" />
+              <Text style={styles.newChatText}>NEW CHAT</Text>
+            </TouchableOpacity>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {sessions.length === 0 ? (
+                <Text style={styles.historyEmpty}>No past chats yet.</Text>
+              ) : (
+                sessions.map((s) => {
+                  const isActive = s.id === activeSession;
+                  return (
+                    <View
+                      key={s.id}
+                      style={[styles.historyItem, isActive && { borderColor: C.accent, backgroundColor: `${C.accent}10` }]}
+                    >
+                      <TouchableOpacity style={{ flex: 1 }} onPress={() => switchSession(s.id)}>
+                        <Text
+                          style={[styles.historyItemTitle, isActive && { color: C.accent }]}
+                          numberOfLines={1}
+                        >
+                          {s.title || "New Chat"}
+                        </Text>
+                        <Text style={styles.historyItemDate}>
+                          {new Date(s.updatedAt || s.createdAt).toLocaleDateString("en-IN", {
+                            day: "numeric",
+                            month: "short",
+                          })}
+                          {" · "}
+                          {new Date(s.updatedAt || s.createdAt).toLocaleTimeString("en-IN", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => removeSession(s.id)}
+                        style={styles.historyDeleteBtn}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <MaterialCommunityIcons name="trash-can-outline" size={16} color={C.error || C.muted} />
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })
+              )}
+            </ScrollView>
+          </View>
+          <TouchableOpacity style={{ flex: 1 }} onPress={() => setShowHistory(false)} />
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -397,5 +542,82 @@ const createStyles = (C) =>
       backgroundColor: C.accent,
       alignItems: "center",
       justifyContent: "center",
+    },
+    historyOverlay: {
+      flex: 1,
+      flexDirection: "row",
+      backgroundColor: "rgba(0,0,0,0.6)",
+    },
+    historyPanel: {
+      width: "78%",
+      maxWidth: 320,
+      backgroundColor: C.card,
+      borderRightWidth: 1,
+      borderRightColor: C.border,
+      padding: 16,
+    },
+    historyHeader: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      marginBottom: 14,
+    },
+    historyTitle: {
+      color: C.text,
+      fontSize: 14,
+      fontWeight: "900",
+      letterSpacing: 1,
+    },
+    newChatBtn: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: 6,
+      backgroundColor: C.accent,
+      borderRadius: 10,
+      paddingVertical: 11,
+      marginBottom: 14,
+    },
+    newChatText: {
+      color: "#000",
+      fontSize: 12,
+      fontWeight: "800",
+      letterSpacing: 0.5,
+    },
+    historyEmpty: {
+      color: C.muted,
+      fontSize: 12,
+      textAlign: "center",
+      marginTop: 20,
+    },
+    historyItem: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      backgroundColor: C.surface,
+      borderWidth: 1,
+      borderColor: C.border,
+      borderRadius: 10,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      marginBottom: 8,
+    },
+    historyItemTitle: {
+      color: C.text,
+      fontSize: 13,
+      fontWeight: "700",
+    },
+    historyItemDate: {
+      color: C.muted,
+      fontSize: 10,
+      marginTop: 2,
+    },
+    historyDeleteBtn: {
+      width: 28,
+      height: 28,
+      borderRadius: 8,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: `${C.muted}12`,
     },
   });

@@ -2,12 +2,30 @@ import React, { useMemo, useState, useEffect } from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, TextInput, Alert, Platform, Image } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
-import { USER_GOALS_DEFAULT, todayStr, prettyDate } from "../constants/data";
+import { USER_GOALS_DEFAULT, todayStr, prettyDate, timeStr } from "../constants/data";
 import { calculateStreaks, listenUserSettings, saveUserSettings, listenBodyPhotos, saveBodyPhotoEntry, deleteBodyPhotoEntry, getWorkouts } from "../utils/firestore";
 import { exportUserData, importUserData } from "../utils/backup";
 import { useTheme } from "../context/ThemeContext";
 import ThemePickerModal from "../components/ThemePickerModal";
+import PhotoCropModal from "../components/PhotoCropModal";
 import { getThemeById } from "../constants/themes";
+
+// BMI = kg / m² (metric) or 703 × lbs / in² (imperial) — WHO standard.
+const computeBmi = (weight, height, units) => {
+  if (!(weight > 0) || !(height > 0)) return null;
+  const bmi =
+    units === "Imperial"
+      ? (703 * weight) / (height * height)
+      : weight / Math.pow(height / 100, 2);
+  return Math.round(bmi * 10) / 10;
+};
+
+const bmiCategory = (bmi) => {
+  if (bmi < 18.5) return "Underweight";
+  if (bmi < 25) return "Healthy";
+  if (bmi < 30) return "Overweight";
+  return "Obese";
+};
 
 const compressImageWeb = (base64Str, maxWidth, maxHeight, quality = 0.5) => {
   return new Promise((resolve) => {
@@ -71,12 +89,15 @@ export default function DashboardScreen({
     age: "",
     height: "",
     weight: "",
+    bodyFat: "",
+    waist: "",
     units: "Metric",
     profilePhoto: "",
     bodyPhoto: "",
   });
 
   const [bodyPhotos, setBodyPhotos] = useState([]);
+  const [cropRequest, setCropRequest] = useState(null); // { uri, type } — web crop flow
   const [showBodyHistoryModal, setShowBodyHistoryModal] = useState(false);
   const [activeHistoryPhoto, setActiveHistoryPhoto] = useState(null);
   const [backupBusy, setBackupBusy] = useState(false);
@@ -89,6 +110,8 @@ export default function DashboardScreen({
         age: settings.age ? String(settings.age) : "",
         height: settings.height ? String(settings.height) : "",
         weight: settings.weight ? String(settings.weight) : "",
+        bodyFat: settings.bodyFat ? String(settings.bodyFat) : "",
+        waist: settings.waist ? String(settings.waist) : "",
         units: settings.units || "Metric",
         profilePhoto: settings.profilePhoto || "",
         bodyPhoto: "", // Leave blank for adding new photo
@@ -113,10 +136,11 @@ export default function DashboardScreen({
       return;
     }
 
+    // No fixed `aspect`: the OS crop tool stays available but the user can
+    // freely resize the crop box to any dimension they want.
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
-      aspect: type === 'profile' ? [1, 1] : [16, 9],
       quality: type === 'profile' ? 0.2 : 0.3,
       base64: true,
     });
@@ -128,12 +152,12 @@ export default function DashboardScreen({
         base64 = asset.uri.split(",")[1];
       }
       const prefix = "data:image/jpeg;base64,";
-      let fullBase64 = base64 ? (base64.startsWith("data:") ? base64 : prefix + base64) : asset.uri;
+      const fullBase64 = base64 ? (base64.startsWith("data:") ? base64 : prefix + base64) : asset.uri;
 
       if (Platform.OS === 'web') {
-        const maxW = type === 'profile' ? 250 : 640;
-        const maxH = type === 'profile' ? 250 : 360;
-        fullBase64 = await compressImageWeb(fullBase64, maxW, maxH, 0.4);
+        // Browsers have no built-in crop UI, so open our own crop modal.
+        setCropRequest({ uri: fullBase64, type });
+        return;
       }
 
       if (type === 'profile') {
@@ -144,10 +168,27 @@ export default function DashboardScreen({
     }
   };
 
+  const handleCropDone = async (croppedBase64) => {
+    const type = cropRequest?.type;
+    setCropRequest(null);
+    if (!type) return;
+    const maxW = type === 'profile' ? 250 : 640;
+    const maxH = type === 'profile' ? 250 : 360;
+    const finalBase64 = await compressImageWeb(croppedBase64, maxW, maxH, 0.4);
+    if (type === 'profile') {
+      setProfileData(p => ({ ...p, profilePhoto: finalBase64 }));
+    } else {
+      setProfileData(p => ({ ...p, bodyPhoto: finalBase64 }));
+    }
+  };
+
+  // Updates the profile/settings only — does NOT create a history entry.
   const handleSaveProfile = async () => {
     const ageNum = parseInt(profileData.age) || 0;
     const heightNum = parseFloat(profileData.height) || 0;
     const weightNum = parseFloat(profileData.weight) || 0;
+    const bodyFatNum = parseFloat(profileData.bodyFat) || 0;
+    const waistNum = parseFloat(profileData.waist) || 0;
 
     const updatedSettings = {
       ...settings,
@@ -155,6 +196,8 @@ export default function DashboardScreen({
       age: ageNum,
       height: heightNum,
       weight: weightNum,
+      bodyFat: bodyFatNum,
+      waist: waistNum,
       units: profileData.units,
       profilePhoto: profileData.profilePhoto,
     };
@@ -163,24 +206,68 @@ export default function DashboardScreen({
       delete updatedSettings.bodyPhoto;
     }
 
+    // Update local state immediately — in demo/guest mode there is no
+    // Firestore listener to push the saved settings back to this screen.
+    setSettings(updatedSettings);
     await saveUserSettings(updatedSettings);
 
-    if (profileData.bodyPhoto) {
-      const photoId = `photo_${Date.now()}`;
-      await saveBodyPhotoEntry({
-        id: photoId,
-        date: todayStr(),
-        photo: profileData.bodyPhoto,
-        weight: weightNum,
-        height: heightNum,
-        units: profileData.units,
-        description: `Logged weight ${weightNum} ${profileData.units === 'Imperial' ? 'lbs' : 'kg'} and height ${heightNum} ${profileData.units === 'Imperial' ? 'in' : 'cm'}`,
-      });
-      setProfileData(p => ({ ...p, bodyPhoto: "" }));
+    setShowProfileModal(false);
+    Alert.alert(
+      "Success 🎉",
+      profileData.bodyPhoto
+        ? "Profile updated! Tip: use “Save to Body History” to store your body photo + measurements as a dated snapshot."
+        : "Profile updated successfully!",
+    );
+  };
+
+  // Stores a dated snapshot (photo optional + measurements) in Body Progress History.
+  const handleSaveToHistory = async () => {
+    const heightNum = parseFloat(profileData.height) || 0;
+    const weightNum = parseFloat(profileData.weight) || 0;
+    const bodyFatNum = parseFloat(profileData.bodyFat) || 0;
+    const waistNum = parseFloat(profileData.waist) || 0;
+
+    if (!profileData.bodyPhoto && !weightNum && !bodyFatNum && !waistNum) {
+      Alert.alert(
+        "Nothing to save",
+        "Add a body photo or enter weight / body fat / waist first.",
+      );
+      return;
     }
 
-    setShowProfileModal(false);
-    Alert.alert("Success 🎉", "Profile updated successfully!");
+    const bmi = computeBmi(weightNum, heightNum, profileData.units);
+    const wUnit = profileData.units === "Imperial" ? "lbs" : "kg";
+    const lUnit = profileData.units === "Imperial" ? "in" : "cm";
+    const descParts = [];
+    if (weightNum) descParts.push(`Weight ${weightNum} ${wUnit}`);
+    if (bodyFatNum) descParts.push(`Body fat ${bodyFatNum}%`);
+    if (bmi) descParts.push(`BMI ${bmi} (${bmiCategory(bmi)})`);
+    if (waistNum) descParts.push(`Waist ${waistNum} ${lUnit}`);
+
+    const entry = {
+      id: `photo_${Date.now()}`,
+      date: todayStr(),
+      time: timeStr(),
+      photo: profileData.bodyPhoto || "",
+      weight: weightNum,
+      height: heightNum,
+      bodyFat: bodyFatNum,
+      waist: waistNum,
+      bmi: bmi || 0,
+      units: profileData.units,
+      description: descParts.join(" · ") || "Body snapshot",
+    };
+    const ok = await saveBodyPhotoEntry(entry);
+
+    if (ok) {
+      // Show it immediately — demo/guest mode has no live listener,
+      // and on cloud accounts the snapshot will simply replace this list.
+      setBodyPhotos(prev => [entry, ...prev.filter(p => p.id !== entry.id)]);
+      setProfileData(p => ({ ...p, bodyPhoto: "" }));
+      Alert.alert("Saved 📈", "Snapshot added to Body Progress History.");
+    } else {
+      Alert.alert("Save Failed", "Could not save the snapshot. Please try again.");
+    }
   };
 
   const stats = useMemo(() => {
@@ -234,7 +321,34 @@ export default function DashboardScreen({
     const goalProgress = Math.min(100, ((streaks.thisWeekWorkouts || 0) / goalsPerWeek) * 100);
     const currentWeekNo = Math.max(1, Math.ceil((workoutEntries.length || 0) / goalsPerWeek));
 
+    // Goal-aware day streak: planned rest days do NOT break the streak.
+    // With a goal of g workouts/week you can rest up to (7 - g) days in a
+    // row, so a gap between workout dates of <= (7 - g + 1) days keeps the
+    // streak alive. Example: 5/week Mon-Fri, rest Sat-Sun, train Mon-Wed
+    // next week -> streak = 8 workout days.
+    const dayMs = 24 * 60 * 60 * 1000;
+    const diffDays = (a, b) =>
+      Math.round((new Date(`${b}T12:00`) - new Date(`${a}T12:00`)) / dayMs);
+    const allowedGap = Math.max(1, 7 - goalsPerWeek + 1);
+    const dayDates = workoutEntries.map(([d]) => d).sort();
+    let longestDayStreak = 0;
+    let runDays = 0;
+    let prevDate = null;
+    dayDates.forEach((d) => {
+      runDays = prevDate && diffDays(prevDate, d) <= allowedGap ? runDays + 1 : 1;
+      longestDayStreak = Math.max(longestDayStreak, runDays);
+      prevDate = d;
+    });
+    let currentDayStreak = 0;
+    if (dayDates.length) {
+      const sinceLast = diffDays(dayDates[dayDates.length - 1], todayStr());
+      currentDayStreak = sinceLast <= allowedGap ? runDays : 0;
+    }
+
     return {
+      longestDayStreak,
+      currentDayStreak,
+      allowedGap,
       sessions: workoutEntries.length,
       todayLogged,
       ...streaks,
@@ -334,7 +448,11 @@ export default function DashboardScreen({
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollContent}
+        contentContainerStyle={styles.scrollInner}
+        showsVerticalScrollIndicator={false}
+      >
         {showRestoreHint && (
           <TouchableOpacity style={styles.restoreBanner} onPress={onDismissRestoreHint}>
             <MaterialCommunityIcons name="cloud-check" size={18} color={C.green} />
@@ -350,6 +468,28 @@ export default function DashboardScreen({
           <StatCard label="SESSIONS" value={stats.sessions} icon="calendar-check" color={C.accent} isHero={true} styles={styles} />
           <StatCard label="LONGEST STREAK WEEK" value={stats.longestWeekStreak} icon="fire" color={C.orange} styles={styles} />
           <StatCard label="CURRENT STREAK WEEK" value={stats.currentWeekStreak} icon="calendar-sync" color={C.green} styles={styles} />
+        </View>
+
+        {/* Day Streaks (goal-aware: planned rest days don't break the streak) */}
+        <View style={styles.streakContainer}>
+          <View style={[styles.streakCard, { borderLeftColor: C.orange }]}>
+            <View style={styles.streakHeader}>
+              <MaterialCommunityIcons name="fire" size={16} color={C.orange} />
+              <Text style={styles.streakLabel}>LONGEST DAY STREAK</Text>
+            </View>
+            <Text style={[styles.streakValue, { color: C.orange }]}>{stats.longestDayStreak}</Text>
+            <Text style={styles.streakSub}>workout days in a row</Text>
+          </View>
+          <View style={[styles.streakCard, { borderLeftColor: C.green }]}>
+            <View style={styles.streakHeader}>
+              <MaterialCommunityIcons name="lightning-bolt" size={16} color={C.green} />
+              <Text style={styles.streakLabel}>CURRENT DAY STREAK</Text>
+            </View>
+            <Text style={[styles.streakValue, { color: C.green }]}>{stats.currentDayStreak}</Text>
+            <Text style={styles.streakSub}>
+              rest ≤ {stats.allowedGap - 1} day{stats.allowedGap - 1 !== 1 ? "s" : ""} keeps it ({stats.goalsPerWeek}/week plan)
+            </Text>
+          </View>
         </View>
 
         {/* Today's Status */}
@@ -397,6 +537,27 @@ export default function DashboardScreen({
               <Text style={styles.statValText}>{settings.units || "Metric"}</Text>
             </View>
           </View>
+
+          {(() => {
+            const bmi = computeBmi(settings.weight, settings.height, settings.units);
+            if (!bmi && !settings.bodyFat && !settings.waist) return null;
+            return (
+              <View style={[styles.statsRow, { borderTopWidth: 0, paddingTop: 10 }]}>
+                <View style={styles.statsCol}>
+                  <Text style={styles.statSubLabel}>BODY FAT</Text>
+                  <Text style={styles.statValText}>{settings.bodyFat ? `${settings.bodyFat}%` : "--"}</Text>
+                </View>
+                <View style={styles.statsCol}>
+                  <Text style={styles.statSubLabel}>BMI</Text>
+                  <Text style={styles.statValText}>{bmi ? `${bmi}` : "--"}</Text>
+                </View>
+                <View style={styles.statsCol}>
+                  <Text style={styles.statSubLabel}>WAIST</Text>
+                  <Text style={styles.statValText}>{settings.waist ? `${settings.waist} ${settings.units === 'Imperial' ? 'in' : 'cm'}` : "--"}</Text>
+                </View>
+              </View>
+            );
+          })()}
 
           <TouchableOpacity
             style={styles.bodyHistoryButton}
@@ -456,21 +617,6 @@ export default function DashboardScreen({
           <Text style={styles.primaryButtonText}>Start Workout</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => navigation.navigate("History")}>
-          <MaterialCommunityIcons name="history" size={18} color={C.accent} />
-          <Text style={styles.secondaryButtonText}>View History</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => navigation.navigate("Progress")}>
-          <MaterialCommunityIcons name="chart-line" size={18} color={C.accent} />
-          <Text style={styles.secondaryButtonText}>View Performance</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.button, styles.secondaryButton]} onPress={() => navigation.navigate("Exercises")}>
-          <MaterialCommunityIcons name="format-list-bulleted" size={18} color={C.accent} />
-          <Text style={styles.secondaryButtonText}>Manage Exercises</Text>
-        </TouchableOpacity>
-
         <TouchableOpacity
           style={[styles.button, styles.secondaryButton]}
           onPress={() => setShowThemeModal(true)}
@@ -510,6 +656,14 @@ export default function DashboardScreen({
         currentThemeId={activeThemeId}
         onSelect={handleThemeSelect}
         onClose={() => setShowThemeModal(false)}
+      />
+
+      <PhotoCropModal
+        visible={Boolean(cropRequest)}
+        imageUri={cropRequest?.uri}
+        colors={C}
+        onCancel={() => setCropRequest(null)}
+        onDone={handleCropDone}
       />
 
       {/* Goal Setting Modal */}
@@ -569,6 +723,15 @@ export default function DashboardScreen({
                       <MaterialCommunityIcons name="camera-plus" size={28} color={C.accent} />
                     )}
                   </TouchableOpacity>
+                  {profileData.profilePhoto ? (
+                    <TouchableOpacity
+                      style={styles.removePhotoBtn}
+                      onPress={() => setProfileData(p => ({ ...p, profilePhoto: "" }))}
+                    >
+                      <MaterialCommunityIcons name="trash-can-outline" size={12} color={C.error} />
+                      <Text style={styles.removePhotoText}>Remove</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
 
                 <View style={styles.photoBlock}>
@@ -580,6 +743,15 @@ export default function DashboardScreen({
                       <MaterialCommunityIcons name="image-plus" size={28} color={C.accent} />
                     )}
                   </TouchableOpacity>
+                  {profileData.bodyPhoto ? (
+                    <TouchableOpacity
+                      style={styles.removePhotoBtn}
+                      onPress={() => setProfileData(p => ({ ...p, bodyPhoto: "" }))}
+                    >
+                      <MaterialCommunityIcons name="trash-can-outline" size={12} color={C.error} />
+                      <Text style={styles.removePhotoText}>Remove</Text>
+                    </TouchableOpacity>
+                  ) : null}
                 </View>
               </View>
 
@@ -643,6 +815,48 @@ export default function DashboardScreen({
                 </View>
               </View>
 
+              <View style={styles.inputGrid}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>BODY FAT % (OPTIONAL)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="18"
+                    placeholderTextColor={C.muted}
+                    keyboardType="decimal-pad"
+                    value={profileData.bodyFat}
+                    onChangeText={(val) => setProfileData(p => ({ ...p, bodyFat: val }))}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.inputLabel}>WAIST ({profileData.units === 'Metric' ? 'cm' : 'in'}, OPTIONAL)</Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder={profileData.units === 'Metric' ? "82" : "32"}
+                    placeholderTextColor={C.muted}
+                    keyboardType="decimal-pad"
+                    value={profileData.waist}
+                    onChangeText={(val) => setProfileData(p => ({ ...p, waist: val }))}
+                  />
+                </View>
+              </View>
+
+              {(() => {
+                const bmi = computeBmi(
+                  parseFloat(profileData.weight) || 0,
+                  parseFloat(profileData.height) || 0,
+                  profileData.units,
+                );
+                if (!bmi) return null;
+                return (
+                  <View style={styles.bmiRow}>
+                    <MaterialCommunityIcons name="calculator-variant" size={16} color={C.accent} />
+                    <Text style={styles.bmiText}>
+                      BMI (auto): <Text style={{ color: C.accent, fontWeight: "800" }}>{bmi}</Text> · {bmiCategory(bmi)}
+                    </Text>
+                  </View>
+                );
+              })()}
+
               <TouchableOpacity
                 style={[styles.button, styles.primaryButton, { marginTop: 14 }]}
                 onPress={handleSaveProfile}
@@ -650,6 +864,18 @@ export default function DashboardScreen({
                 <MaterialCommunityIcons name="check" size={16} color="#000" />
                 <Text style={styles.primaryButtonText}>SAVE PROFILE</Text>
               </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, styles.secondaryButton]}
+                onPress={handleSaveToHistory}
+              >
+                <MaterialCommunityIcons name="history" size={16} color={C.accent} />
+                <Text style={styles.secondaryButtonText}>SAVE TO BODY HISTORY</Text>
+              </TouchableOpacity>
+              <Text style={styles.saveHintText}>
+                Save Profile only updates your profile. Save to Body History stores
+                today&apos;s snapshot (photo + weight, body fat, BMI, waist) with date &amp; time.
+              </Text>
             </ScrollView>
           </View>
         </View>
@@ -690,14 +916,28 @@ export default function DashboardScreen({
                       }}
                       onPress={() => setActiveHistoryPhoto(item)}
                     >
-                      <Image source={{ uri: item.photo }} style={{ width: "100%", height: 110, resizeMode: "cover" }} />
+                      {item.photo ? (
+                        <Image source={{ uri: item.photo }} style={{ width: "100%", height: 110, resizeMode: "cover" }} />
+                      ) : (
+                        <View style={{ width: "100%", height: 60, alignItems: "center", justifyContent: "center", backgroundColor: `${C.accent}0d` }}>
+                          <MaterialCommunityIcons name="scale-bathroom" size={26} color={C.accent} />
+                        </View>
+                      )}
                       <View style={{ padding: 8 }}>
                         <Text style={{ color: C.text, fontSize: 11, fontWeight: "700" }}>
                           {prettyDate(item.date)}
                         </Text>
                         <Text style={{ color: C.muted, fontSize: 9, marginTop: 2, fontWeight: "600" }}>
-                          {item.weight} {item.units === "Imperial" ? "lbs" : "kg"}
+                          {item.time ? `${item.time} · ` : ""}
+                          {item.weight ? `${item.weight} ${item.units === "Imperial" ? "lbs" : "kg"}` : "—"}
                         </Text>
+                        {(item.bodyFat > 0 || item.bmi > 0) && (
+                          <Text style={{ color: C.muted, fontSize: 9, marginTop: 2, fontWeight: "600" }}>
+                            {item.bodyFat > 0 ? `BF ${item.bodyFat}%` : ""}
+                            {item.bodyFat > 0 && item.bmi > 0 ? " · " : ""}
+                            {item.bmi > 0 ? `BMI ${item.bmi}` : ""}
+                          </Text>
+                        )}
                       </View>
                     </TouchableOpacity>
                   ))}
@@ -714,6 +954,11 @@ export default function DashboardScreen({
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
                 <Text style={{ color: C.text, fontWeight: "800", fontSize: 14 }}>
                   {activeHistoryPhoto ? prettyDate(activeHistoryPhoto.date) : ""}
+                  {activeHistoryPhoto?.time ? (
+                    <Text style={{ color: C.muted, fontSize: 11, fontWeight: "600" }}>
+                      {"  ·  "}{activeHistoryPhoto.time}
+                    </Text>
+                  ) : null}
                 </Text>
                 <TouchableOpacity onPress={() => setActiveHistoryPhoto(null)}>
                   <MaterialCommunityIcons name="close" size={24} color={C.muted} />
@@ -722,21 +967,47 @@ export default function DashboardScreen({
 
               {activeHistoryPhoto && (
                 <View>
-                  <Image
-                    source={{ uri: activeHistoryPhoto.photo }}
-                    style={{ width: "100%", height: 260, borderRadius: 8, resizeMode: "contain", backgroundColor: "#000" }}
-                  />
+                  {activeHistoryPhoto.photo ? (
+                    <Image
+                      source={{ uri: activeHistoryPhoto.photo }}
+                      style={{ width: "100%", height: 260, borderRadius: 8, resizeMode: "contain", backgroundColor: "#000" }}
+                    />
+                  ) : (
+                    <View style={{ width: "100%", height: 100, borderRadius: 8, backgroundColor: `${C.accent}0d`, alignItems: "center", justifyContent: "center" }}>
+                      <MaterialCommunityIcons name="scale-bathroom" size={36} color={C.accent} />
+                      <Text style={{ color: C.muted, fontSize: 10, marginTop: 6 }}>Measurements only — no photo</Text>
+                    </View>
+                  )}
                   <View style={{ marginTop: 14, gap: 6 }}>
                     <Text style={{ color: C.text, fontSize: 13, lineHeight: 18 }}>
                       {activeHistoryPhoto.description}
                     </Text>
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", borderTopWidth: 1, borderTopColor: C.border, paddingTop: 10, marginTop: 6 }}>
-                      <Text style={{ color: C.muted, fontSize: 11 }}>
-                        Weight: <Text style={{ color: C.accent, fontWeight: "700" }}>{activeHistoryPhoto.weight} {activeHistoryPhoto.units === "Imperial" ? "lbs" : "kg"}</Text>
-                      </Text>
-                      <Text style={{ color: C.muted, fontSize: 11 }}>
-                        Height: <Text style={{ color: C.accent, fontWeight: "700" }}>{activeHistoryPhoto.height} {activeHistoryPhoto.units === "Imperial" ? "in" : "cm"}</Text>
-                      </Text>
+                    <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 12, borderTopWidth: 1, borderTopColor: C.border, paddingTop: 10, marginTop: 6 }}>
+                      {activeHistoryPhoto.weight > 0 && (
+                        <Text style={{ color: C.muted, fontSize: 11 }}>
+                          Weight: <Text style={{ color: C.accent, fontWeight: "700" }}>{activeHistoryPhoto.weight} {activeHistoryPhoto.units === "Imperial" ? "lbs" : "kg"}</Text>
+                        </Text>
+                      )}
+                      {activeHistoryPhoto.height > 0 && (
+                        <Text style={{ color: C.muted, fontSize: 11 }}>
+                          Height: <Text style={{ color: C.accent, fontWeight: "700" }}>{activeHistoryPhoto.height} {activeHistoryPhoto.units === "Imperial" ? "in" : "cm"}</Text>
+                        </Text>
+                      )}
+                      {activeHistoryPhoto.bodyFat > 0 && (
+                        <Text style={{ color: C.muted, fontSize: 11 }}>
+                          Body Fat: <Text style={{ color: C.accent, fontWeight: "700" }}>{activeHistoryPhoto.bodyFat}%</Text>
+                        </Text>
+                      )}
+                      {activeHistoryPhoto.bmi > 0 && (
+                        <Text style={{ color: C.muted, fontSize: 11 }}>
+                          BMI: <Text style={{ color: C.accent, fontWeight: "700" }}>{activeHistoryPhoto.bmi}</Text>
+                        </Text>
+                      )}
+                      {activeHistoryPhoto.waist > 0 && (
+                        <Text style={{ color: C.muted, fontSize: 11 }}>
+                          Waist: <Text style={{ color: C.accent, fontWeight: "700" }}>{activeHistoryPhoto.waist} {activeHistoryPhoto.units === "Imperial" ? "in" : "cm"}</Text>
+                        </Text>
+                      )}
                     </View>
 
                     <TouchableOpacity
@@ -826,7 +1097,10 @@ const createStyles = (C) => StyleSheet.create({
     paddingVertical: 7,
   },
   profileText: { color: C.text, fontSize: 12, fontWeight: "600" },
-  scrollContent: { flex: 1, padding: 12 },
+  scrollContent: { flex: 1 },
+  // Padding lives on the content container so the last item (Sign Out)
+  // always has scrollable space below it on every device.
+  scrollInner: { padding: 12, paddingBottom: 20 },
   restoreBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -888,6 +1162,24 @@ const createStyles = (C) => StyleSheet.create({
   streakHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
   streakLabel: { fontSize: 10, color: C.muted, fontWeight: "700", letterSpacing: 0.8 },
   streakValue: { fontSize: 20, fontWeight: "900" },
+  streakSub: { fontSize: 9, color: C.muted, fontWeight: "600", marginTop: 4 },
+  removePhotoBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: `${C.error}50`,
+    backgroundColor: `${C.error}10`,
+  },
+  removePhotoText: {
+    color: C.error,
+    fontSize: 10,
+    fontWeight: "700",
+  },
   goalCard: {
     backgroundColor: C.card,
     borderWidth: 1,
@@ -1154,5 +1446,30 @@ const createStyles = (C) => StyleSheet.create({
     flexDirection: "row",
     gap: 12,
     marginTop: 4,
+  },
+  bmiRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    backgroundColor: `${C.accent}0d`,
+    borderWidth: 1,
+    borderColor: `${C.accent}30`,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 12,
+  },
+  bmiText: {
+    color: C.text,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  saveHintText: {
+    color: C.muted,
+    fontSize: 10,
+    lineHeight: 14,
+    marginTop: 2,
+    marginBottom: 12,
+    textAlign: "center",
   },
 });

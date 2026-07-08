@@ -80,3 +80,20 @@ app.post("/ask", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`GymTracker Coach API listening on port ${PORT}`);
 });
+
+// --- Keep-alive self ping ---
+// Free tiers (Render/other) spin the server down after ~15 min without
+// inbound traffic, causing 30-60s cold starts. Pinging our own public URL
+// counts as inbound traffic and keeps the instance warm.
+// Render sets RENDER_EXTERNAL_URL automatically; on other hosts set
+// KEEP_ALIVE_URL. Disable with KEEP_ALIVE=false.
+const KEEP_ALIVE_URL = process.env.KEEP_ALIVE_URL || process.env.RENDER_EXTERNAL_URL;
+const KEEP_ALIVE_INTERVAL_MS = 10 * 60 * 1000;
+if (KEEP_ALIVE_URL && process.env.KEEP_ALIVE !== "false") {
+  const target = `${KEEP_ALIVE_URL.replace(/\/$/, "")}/health`;
+  console.log(`Keep-alive enabled: pinging ${target} every ${KEEP_ALIVE_INTERVAL_MS / 60000} min`);
+  const timer = setInterval(() => {
+    fetch(target).catch(() => {});
+  }, KEEP_ALIVE_INTERVAL_MS);
+  timer.unref?.();
+}
