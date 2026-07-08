@@ -59,6 +59,27 @@ LogBox.ignoreLogs([
 const Tab = createBottomTabNavigator();
 const APP_VERSION = Constants.expoConfig?.version || "1.1.0";
 const THEME_CACHE_KEY = "gt_theme_id";
+const TAB_ICON_SIZE = 20;
+
+function TabBarLabel({ focused, color, children }) {
+  return (
+    <Text
+      numberOfLines={1}
+      style={{
+        color,
+        fontSize: 10,
+        fontWeight: focused ? "700" : "600",
+        lineHeight: 14,
+        textAlign: "center",
+        marginTop: 3,
+        marginBottom: Platform.OS === "web" ? 4 : 2,
+        ...(Platform.OS === "web" ? { overflow: "visible" } : {}),
+      }}
+    >
+      {children}
+    </Text>
+  );
+}
 
 class ErrorBoundary extends React.Component {
   constructor(props) {
@@ -539,33 +560,28 @@ function MainApp({
 
   const tabScreenOptions = useMemo(
     () => ({
-      // Explicit height = content (56) + the device's bottom inset, so icons
-      // and labels are never squeezed on web or behind gesture bars on phones.
       tabBarStyle: {
         backgroundColor: C.tabBar || C.card,
         borderTopColor: C.border,
         borderTopWidth: 1,
-        height: 60 + insets.bottom,
-        paddingTop: 6,
-        paddingBottom: Math.max(insets.bottom, 6),
+        // Web needs extra height so 6 tab labels are not clipped.
+        height: (Platform.OS === "web" ? 74 : 58) + insets.bottom,
+        paddingTop: Platform.OS === "web" ? 8 : 4,
+        paddingBottom: Math.max(insets.bottom, Platform.OS === "web" ? 10 : 6),
       },
       tabBarActiveTintColor: C.accent,
       tabBarInactiveTintColor: C.muted,
-      // The icon wrapper defaults to flex:1 and crushes the label,
-      // so pin both to fixed sizes.
       tabBarIconStyle: {
-        flexGrow: 0,
-        flexShrink: 0,
-        height: 26,
+        marginTop: 0,
+        marginBottom: 0,
+        width: TAB_ICON_SIZE,
+        height: TAB_ICON_SIZE,
       },
-      tabBarLabelStyle: {
-        fontSize: 10,
-        fontWeight: "600",
-        lineHeight: 13,
-        height: 13,
-        flexShrink: 0,
-        marginTop: 2,
+      tabBarItemStyle: {
+        paddingVertical: 0,
+        justifyContent: "center",
       },
+      tabBarLabel: TabBarLabel,
       headerShown: false,
       tabBarHideOnKeyboard: true,
       lazy: true,
@@ -646,10 +662,10 @@ function MainApp({
                 )}
                 options={{
                   tabBarLabel: "Dashboard",
-                  tabBarIcon: ({ color, size }) => (
+                  tabBarIcon: ({ color }) => (
                     <MaterialCommunityIcons
                       name="view-dashboard"
-                      size={size}
+                      size={TAB_ICON_SIZE}
                       color={color}
                     />
                   ),
@@ -673,10 +689,10 @@ function MainApp({
                 )}
                 options={{
                   tabBarLabel: "Today",
-                  tabBarIcon: ({ color, size }) => (
+                  tabBarIcon: ({ color }) => (
                     <MaterialCommunityIcons
                       name="dumbbell"
-                      size={size}
+                      size={TAB_ICON_SIZE}
                       color={color}
                     />
                   ),
@@ -699,10 +715,10 @@ function MainApp({
                 )}
                 options={{
                   tabBarLabel: "History",
-                  tabBarIcon: ({ color, size }) => (
+                  tabBarIcon: ({ color }) => (
                     <MaterialCommunityIcons
                       name="history"
-                      size={size}
+                      size={TAB_ICON_SIZE}
                       color={color}
                     />
                   ),
@@ -723,10 +739,10 @@ function MainApp({
                 )}
                 options={{
                   tabBarLabel: "Progress",
-                  tabBarIcon: ({ color, size }) => (
+                  tabBarIcon: ({ color }) => (
                     <MaterialCommunityIcons
                       name="chart-line"
-                      size={size}
+                      size={TAB_ICON_SIZE}
                       color={color}
                     />
                   ),
@@ -754,10 +770,10 @@ function MainApp({
                 )}
                 options={{
                   tabBarLabel: "Exercises",
-                  tabBarIcon: ({ color, size }) => (
+                  tabBarIcon: ({ color }) => (
                     <MaterialCommunityIcons
                       name="dumbbell"
-                      size={size}
+                      size={TAB_ICON_SIZE}
                       color={color}
                     />
                   ),
@@ -775,10 +791,10 @@ function MainApp({
                 )}
                 options={{
                   tabBarLabel: "Coach",
-                  tabBarIcon: ({ color, size }) => (
+                  tabBarIcon: ({ color }) => (
                     <MaterialCommunityIcons
                       name="robot"
-                      size={size}
+                      size={TAB_ICON_SIZE}
                       color={color}
                     />
                   ),
