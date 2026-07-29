@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, TextInput, ActivityIndicator, Alert, KeyboardAvoidingView, Platform
 } from 'react-native';
 import { useTheme } from "../context/ThemeContext";
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -198,7 +198,11 @@ export default function ExercisesScreen({
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === "ios" ? "padding" : "height"}
+      keyboardVerticalOffset={Platform.OS === "android" ? 24 : 0}
+    >
       <View style={styles.header}>
         <View>
           <Text style={styles.headerTitle}>EXERCISE LIBRARY</Text>
@@ -228,7 +232,12 @@ export default function ExercisesScreen({
         )}
       </View>
 
-      <ScrollView style={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
+      >
         {categoryList.map(category => {
           const exs = grouped[category];
           if (!exs.length) return null;
@@ -332,7 +341,7 @@ export default function ExercisesScreen({
         onClose={() => setEditingExercise(null)}
         onSave={handleEditSave}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

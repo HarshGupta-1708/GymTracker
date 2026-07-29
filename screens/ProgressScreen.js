@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import {
-  View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Dimensions
+  View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Dimensions, TextInput
 } from 'react-native';
 import { useTheme } from "../context/ThemeContext";
 import { LineChart, BarChart } from 'react-native-chart-kit';
@@ -13,6 +13,8 @@ export default function ProgressScreen({ workouts, loading }) {
   const { colors: C } = useTheme();
   const styles = useMemo(() => createStyles(C), [C]);
   const [selectedEx, setSelectedEx] = useState(null);
+  const [exQuery, setExQuery] = useState("");
+  const [pickerOpen, setPickerOpen] = useState(false);
   const [chartWidth, setChartWidth] = useState(Dimensions.get('window').width - 32);
 
   const handleLayout = (event) => {
@@ -22,7 +24,7 @@ export default function ProgressScreen({ workouts, loading }) {
     }
   };
 
-  // Get all exercises with data
+  // Get all exercises with data (sorted A–Z for easier finding)
   const exWithData = useMemo(() => {
     const exSet = new Set();
     Object.values(workouts).forEach(w => {
@@ -32,10 +34,18 @@ export default function ProgressScreen({ workouts, loading }) {
         }
       });
     });
-    return Array.from(exSet);
+    return Array.from(exSet).sort((a, b) => a.localeCompare(b));
   }, [workouts]);
 
-  const activeEx = selectedEx || exWithData[0];
+  const filteredEx = useMemo(() => {
+    const q = exQuery.trim().toLowerCase();
+    if (!q) return exWithData;
+    return exWithData.filter((name) => name.toLowerCase().includes(q));
+  }, [exWithData, exQuery]);
+
+  const activeEx = selectedEx && exWithData.includes(selectedEx)
+    ? selectedEx
+    : exWithData[0];
 
   // Epley formula — the standard estimate used in strength research:
   // 1RM ≈ weight × (1 + reps / 30). Lets you compare strength across
@@ -162,31 +172,75 @@ export default function ProgressScreen({ workouts, loading }) {
           </View>
         ) : (
           <>
-            {/* Exercise Selector */}
+            {/* Exercise Selector — searchable compact picker */}
             <View style={styles.section}>
-              <Text style={styles.sectionLabel}>SELECT EXERCISE</Text>
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.exScroll}>
-                {exWithData.map(ex => (
-                  <TouchableOpacity
-                    key={ex}
-                    style={[
-                      styles.exButton,
-                      activeEx === ex && { backgroundColor: C.accent, borderColor: C.accent }
-                    ]}
-                    onPress={() => setSelectedEx(ex)}
-                  >
-                    <Text
-                      style={[
-                        styles.exButtonText,
-                        activeEx === ex && { color: '#000', fontWeight: '700' }
-                      ]}
-                      numberOfLines={2}
-                    >
-                      {ex}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </ScrollView>
+              <Text style={styles.sectionLabel}>SELECT EXERCISE ({exWithData.length})</Text>
+              <TouchableOpacity
+                style={styles.exPickerBtn}
+                onPress={() => setPickerOpen((v) => !v)}
+                activeOpacity={0.85}
+              >
+                <MaterialCommunityIcons name="dumbbell" size={16} color={C.accent} />
+                <Text style={styles.exPickerText} numberOfLines={1}>
+                  {activeEx || "Choose exercise"}
+                </Text>
+                <MaterialCommunityIcons
+                  name={pickerOpen ? "chevron-up" : "chevron-down"}
+                  size={20}
+                  color={C.muted}
+                />
+              </TouchableOpacity>
+
+              {pickerOpen && (
+                <View style={styles.exPickerPanel}>
+                  <View style={styles.exSearchBox}>
+                    <MaterialCommunityIcons name="magnify" size={16} color={C.muted} />
+                    <TextInput
+                      style={styles.exSearchInput}
+                      placeholder="Search exercises..."
+                      placeholderTextColor={C.muted}
+                      value={exQuery}
+                      onChangeText={setExQuery}
+                      autoFocus
+                    />
+                    {exQuery ? (
+                      <TouchableOpacity onPress={() => setExQuery("")}>
+                        <MaterialCommunityIcons name="close" size={16} color={C.muted} />
+                      </TouchableOpacity>
+                    ) : null}
+                  </View>
+                  <ScrollView style={{ maxHeight: 220 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+                    {filteredEx.length === 0 ? (
+                      <Text style={styles.exEmpty}>No matches</Text>
+                    ) : (
+                      filteredEx.map((ex) => {
+                        const active = activeEx === ex;
+                        return (
+                          <TouchableOpacity
+                            key={ex}
+                            style={[styles.exOption, active && { backgroundColor: `${C.accent}18` }]}
+                            onPress={() => {
+                              setSelectedEx(ex);
+                              setPickerOpen(false);
+                              setExQuery("");
+                            }}
+                          >
+                            <Text
+                              style={[styles.exOptionText, active && { color: C.accent, fontWeight: "800" }]}
+                              numberOfLines={1}
+                            >
+                              {ex}
+                            </Text>
+                            {active ? (
+                              <MaterialCommunityIcons name="check" size={16} color={C.accent} />
+                            ) : null}
+                          </TouchableOpacity>
+                        );
+                      })
+                    )}
+                  </ScrollView>
+                </View>
+              )}
             </View>
 
             {/* Charts */}
@@ -439,6 +493,69 @@ const createStyles = (C) => StyleSheet.create({
     color: C.muted,
     letterSpacing: 1.5,
     marginBottom: 10,
+  },
+  exPickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: C.surface,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+  },
+  exPickerText: {
+    flex: 1,
+    color: C.text,
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  exPickerPanel: {
+    marginTop: 8,
+    backgroundColor: C.card,
+    borderWidth: 1,
+    borderColor: C.border,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
+  exSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+    backgroundColor: C.surface,
+  },
+  exSearchInput: {
+    flex: 1,
+    color: C.text,
+    fontSize: 13,
+    paddingVertical: 0,
+  },
+  exOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  exOptionText: {
+    flex: 1,
+    color: C.text,
+    fontSize: 13,
+    fontWeight: '600',
+    marginRight: 8,
+  },
+  exEmpty: {
+    color: C.muted,
+    fontSize: 12,
+    textAlign: 'center',
+    paddingVertical: 20,
   },
   exScroll: {
     marginHorizontal: -12,

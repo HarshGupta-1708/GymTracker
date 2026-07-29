@@ -6,7 +6,7 @@ import { useTheme } from "../context/ThemeContext";
 const STEPS = [
   {
     icon: "arm-flex",
-    title: "Welcome to GYM TRACKER",
+    title: "Welcome to FitTrack",
     text: "Your personal gym log — workouts, progress charts, body stats and an AI coach. Here's a quick 1-minute tour.",
   },
   {

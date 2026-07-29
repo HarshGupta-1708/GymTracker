@@ -4,6 +4,7 @@ import {
     ActivityIndicator,
     Alert,
     Dimensions,
+    Keyboard,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -14,8 +15,9 @@ import {
     TouchableOpacity,
     View,
 } from "react-native";
-import { CATEGORIES, CATEGORY_COLORS, PRESET_EXERCISES, WORKOUT_PLANS, prettyDate, shortDate, toDateStr, todayStr } from "../constants/data";
+import { CATEGORIES, CATEGORY_COLORS, PRESET_EXERCISES, prettyDate, shortDate, toDateStr, todayStr } from "../constants/data";
 import CustomExerciseForm from "../components/CustomExerciseForm";
+import KeyboardSafeView from "../components/KeyboardSafeView";
 import { useTheme } from "../context/ThemeContext";
 import { estimateKcal, saveWorkout } from "../utils/firestore";
 import {
@@ -25,6 +27,13 @@ import {
     getExerciseFields,
     validateSetFields,
 } from "../utils/exerciseTracking";
+import { listenExerciseNotes, upsertExerciseNote } from "../utils/exerciseNotes";
+import {
+    createPlanId,
+    defaultPlansFromConstants,
+    listenWorkoutPlans,
+    saveWorkoutPlans,
+} from "../utils/workoutPlans";
 
 const { width } = Dimensions.get("window");
 
@@ -50,10 +59,15 @@ export default function TodayScreen({
   // Modals
   const [modal, setModal] = useState(null);
   const [addSetFor, setAddSetFor] = useState(null);
+  const [editingSetIndex, setEditingSetIndex] = useState(null);
   const [setFieldValues, setSetFieldValues] = useState({});
   const [exSearch, setExSearch] = useState("");
   const [showCustomForm, setShowCustomForm] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [workoutPlans, setWorkoutPlans] = useState(defaultPlansFromConstants);
+  const [exerciseNotes, setExerciseNotes] = useState({});
+  const [noteExName, setNoteExName] = useState(null);
+  const [noteDraft, setNoteDraft] = useState("");
 
   useEffect(() => {
     workoutsRef.current = workouts;
@@ -64,6 +78,15 @@ export default function TodayScreen({
       setLoading(false);
     }
   }, [useSharedWorkouts, propWorkouts]);
+
+  useEffect(() => {
+    const unsubPlans = listenWorkoutPlans(setWorkoutPlans);
+    const unsubNotes = listenExerciseNotes(setExerciseNotes);
+    return () => {
+      unsubPlans();
+      unsubNotes();
+    };
+  }, []);
 
   const wk = workouts[date] || { exs: [] };
 
@@ -100,11 +123,16 @@ export default function TodayScreen({
     setExSearch("");
   };
 
-  const addPlan = async (planName) => {
-    const names = WORKOUT_PLANS[planName];
+  const addPlan = async (plan) => {
+    const names = plan?.exercises || [];
+    if (!names.length) {
+      Alert.alert("Empty plan", "This plan has no exercises.");
+      return;
+    }
     const existing = new Set(wk.exs.map((e) => e.name));
     await updWk({
       ...wk,
+      dayTitle: wk.dayTitle || plan.name || "",
       exs: [
         ...wk.exs,
         ...names
@@ -115,9 +143,65 @@ export default function TodayScreen({
     setModal(null);
   };
 
+  const persistPlans = async (next) => {
+    const saved = await saveWorkoutPlans(next);
+    setWorkoutPlans(saved);
+    return saved;
+  };
+
   const removeEx = async (name) => {
     const latestWk = workoutsRef.current[date] || { exs: [] };
     await updWk({ ...latestWk, exs: latestWk.exs.filter((e) => e.name !== name) });
+  };
+
+  const confirmRemoveEx = (name) => {
+    const message = `Remove "${name}" from this workout?\nLogged sets for today will also be removed.`;
+    // Alert.alert multi-button confirms are unreliable on web (Chrome).
+    if (Platform.OS === "web") {
+      if (typeof window !== "undefined" && window.confirm(`Remove exercise?\n\n${message}`)) {
+        removeEx(name);
+      }
+      return;
+    }
+    Alert.alert("Remove exercise?", message, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Remove", style: "destructive", onPress: () => removeEx(name) },
+    ]);
+  };
+
+  const moveEx = async (name, direction) => {
+    const latestWk = workoutsRef.current[date] || { exs: [] };
+    const list = [...(latestWk.exs || [])];
+    const idx = list.findIndex((e) => e.name === name);
+    if (idx < 0) return;
+    const target = idx + direction;
+    if (target < 0 || target >= list.length) return;
+    [list[idx], list[target]] = [list[target], list[idx]];
+    await updWk({ ...latestWk, exs: list });
+  };
+
+  const openExerciseNote = (name) => {
+    setNoteExName(name);
+    setNoteDraft(exerciseNotes[name] || "");
+    setModal("exerciseNote");
+  };
+
+  const saveExerciseNoteModal = async () => {
+    if (!noteExName) return;
+    const next = await upsertExerciseNote(noteExName, noteDraft);
+    setExerciseNotes(next);
+    setNoteExName(null);
+    setNoteDraft("");
+    setModal(null);
+  };
+
+  const clearExerciseNoteModal = async () => {
+    if (!noteExName) return;
+    const next = await upsertExerciseNote(noteExName, "");
+    setExerciseNotes(next);
+    setNoteExName(null);
+    setNoteDraft("");
+    setModal(null);
   };
 
   const copyWorkoutFrom = async (fromDate) => {
@@ -156,26 +240,38 @@ export default function TodayScreen({
     return Object.keys(workouts)
       .filter((d) => d < date && workouts[d]?.exs?.length > 0)
       .sort()
-      .reverse()
-      .slice(0, 7); // Last 7 workouts
+      .reverse();
   };
 
-  const openAddSet = (name) => {
+  const openAddSet = (name, setIndex = null) => {
     const exercise = exLib.find((e) => e.name === name);
     const fields = getExerciseFields(exercise || { name, category: "Custom" });
-    // Sort by date so the prefill really is the most recent set logged.
-    const allSets = Object.keys(workouts)
-      .sort()
-      .flatMap((d) =>
-        (workouts[d]?.exs || [])
-          .filter((e) => e.name === name)
-          .flatMap((e) => e.sets || []),
-      );
-    const last = allSets[allSets.length - 1];
-    const initial = {};
-    fields.forEach((f) => {
-      initial[f.key] = last?.[f.key] !== undefined ? String(last[f.key]) : "";
-    });
+    let initial = {};
+    if (setIndex !== null && setIndex !== undefined) {
+      const current = (workoutsRef.current[date]?.exs || []).find((e) => e.name === name);
+      const existing = current?.sets?.[setIndex];
+      fields.forEach((f) => {
+        initial[f.key] =
+          existing?.[f.key] !== undefined && existing?.[f.key] !== null
+            ? String(existing[f.key])
+            : "";
+      });
+      setEditingSetIndex(setIndex);
+    } else {
+      // Sort by date so the prefill really is the most recent set logged.
+      const allSets = Object.keys(workouts)
+        .sort()
+        .flatMap((d) =>
+          (workouts[d]?.exs || [])
+            .filter((e) => e.name === name)
+            .flatMap((e) => e.sets || []),
+        );
+      const last = allSets[allSets.length - 1];
+      fields.forEach((f) => {
+        initial[f.key] = last?.[f.key] !== undefined ? String(last[f.key]) : "";
+      });
+      setEditingSetIndex(null);
+    }
     setSetFieldValues(initial);
     setAddSetFor(name);
     setModal("addSet");
@@ -196,13 +292,20 @@ export default function TodayScreen({
     const latestWk = workoutsRef.current[date] || { exs: [] };
     await updWk({
       ...latestWk,
-      exs: latestWk.exs.map((e) =>
-        e.name === addSetFor
-          ? { ...e, sets: [...e.sets, newSet] }
-          : e,
-      ),
+      exs: latestWk.exs.map((e) => {
+        if (e.name !== addSetFor) return e;
+        if (editingSetIndex !== null && editingSetIndex !== undefined) {
+          const sets = [...(e.sets || [])];
+          const prev = sets[editingSetIndex] || {};
+          sets[editingSetIndex] = { ...prev, ...newSet, t: prev.t || newSet.t };
+          return { ...e, sets };
+        }
+        return { ...e, sets: [...(e.sets || []), newSet] };
+      }),
     });
     setSetFieldValues({});
+    setEditingSetIndex(null);
+    setAddSetFor(null);
     setModal(null);
   };
 
@@ -309,12 +412,6 @@ export default function TodayScreen({
   const stats = {
     exercises: wk.exs.length,
     sets: wk.exs.reduce((s, e) => s + e.sets.length, 0),
-    volume: Math.round(
-      wk.exs.reduce(
-        (s, e) => s + e.sets.reduce((ss, x) => ss + (x.w || 0) * (x.r || 0), 0),
-        0,
-      ),
-    ),
   };
 
   const filtAddEx = exLib.filter(
@@ -340,19 +437,11 @@ export default function TodayScreen({
   }
 
   return (
-    <View style={styles.container}>
+    <KeyboardSafeView style={styles.container} offset={Platform.OS === "ios" ? 0 : 20}>
       {/* Header */}
       <View style={styles.header}>
         <View style={{ flex: 1 }}>
-          <Text style={styles.headerTitle}>TODAY'S WORKOUT</Text>
-          <TouchableOpacity onPress={() => setModal("calendarLookup")} style={{ alignSelf: 'flex-start', marginTop: 2 }}>
-            <Text style={[styles.headerDate, { color: C.accent, fontWeight: '700' }]}>
-              {prettyDate(date)} ▾
-            </Text>
-            {wk.dayTitle ? (
-              <Text style={styles.headerDayTitle}>{wk.dayTitle}</Text>
-            ) : null}
-          </TouchableOpacity>
+          <Text style={styles.headerTitle}>TODAY&apos;S WORKOUT</Text>
         </View>
         <View style={styles.syncing}>
           {syncing && <ActivityIndicator size="small" color={C.accent} />}
@@ -372,7 +461,7 @@ export default function TodayScreen({
         <TouchableOpacity style={styles.dateBtn} onPress={() => changeDate(-1)}>
           <MaterialCommunityIcons
             name="chevron-left"
-            size={24}
+            size={22}
             color={C.muted}
           />
         </TouchableOpacity>
@@ -382,7 +471,7 @@ export default function TodayScreen({
         >
           <MaterialCommunityIcons
             name="calendar"
-            size={16}
+            size={15}
             color={C.accent}
           />
           <Text style={styles.dateText}>{prettyDate(date)} ▾</Text>
@@ -399,7 +488,7 @@ export default function TodayScreen({
         >
           <MaterialCommunityIcons
             name="chevron-right"
-            size={24}
+            size={22}
             color={date >= todayStr() ? C.muted : C.text}
           />
         </TouchableOpacity>
@@ -407,10 +496,14 @@ export default function TodayScreen({
 
       {/* Workout Day Name */}
       <View style={styles.dayTitleRow}>
-        <MaterialCommunityIcons name="label-outline" size={18} color={C.accent} />
+        <MaterialCommunityIcons
+          name={dayTitleDraft.trim() ? "label" : "label-outline"}
+          size={16}
+          color={C.muted}
+        />
         <TextInput
           style={styles.dayTitleInput}
-          placeholder="Workout name (e.g. Leg Day, Push Pull)"
+          placeholder="Workout name (e.g. Leg Day)"
           placeholderTextColor={C.muted}
           value={dayTitleDraft}
           onChangeText={setDayTitleDraft}
@@ -430,12 +523,6 @@ export default function TodayScreen({
             color={C.accent}
           />
           <StatCard styles={styles} label="SETS" value={stats.sets} color={C.orange} />
-          <StatCard
-            styles={styles}
-            label="VOLUME"
-            value={`${stats.volume}kg`}
-            color={C.green}
-          />
         </View>
       )}
 
@@ -444,6 +531,8 @@ export default function TodayScreen({
         style={styles.scrollContent}
         contentContainerStyle={styles.scrollInner}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
+        keyboardDismissMode="on-drag"
       >
         {wk.exs.length === 0 ? (
           <EmptyState
@@ -459,7 +548,7 @@ export default function TodayScreen({
           />
         ) : (
           <>
-            {wk.exs.map((ex) => {
+            {wk.exs.map((ex, exIdx) => {
               const exerciseDef = exLib.find((e) => e.name === ex.name);
               const cat = exerciseDef?.category || "Custom";
               const color = CATEGORY_COLORS[cat] || C.accent;
@@ -475,15 +564,22 @@ export default function TodayScreen({
                 <ExerciseCard
                   styles={styles}
                   C={C}
-                  key={ex.name}
+                  key={`${ex.name}-${exIdx}`}
                   ex={ex}
                   cat={cat}
                   color={color}
                   fields={fields}
                   isPR={isPR}
                   prevSessions={prevSessionsByExercise[ex.name] || []}
+                  note={exerciseNotes[ex.name] || ""}
+                  canMoveUp={exIdx > 0}
+                  canMoveDown={exIdx < wk.exs.length - 1}
+                  onMoveUp={() => moveEx(ex.name, -1)}
+                  onMoveDown={() => moveEx(ex.name, 1)}
+                  onOpenNote={() => openExerciseNote(ex.name)}
                   onAddSet={() => openAddSet(ex.name)}
-                  onRemoveEx={() => removeEx(ex.name)}
+                  onEditSet={(idx) => openAddSet(ex.name, idx)}
+                  onRemoveEx={() => confirmRemoveEx(ex.name)}
                   onRemoveSet={(idx) => removeSet(ex.name, idx)}
                 />
               );
@@ -543,11 +639,16 @@ export default function TodayScreen({
           exerciseName={addSetFor}
           exercise={exLib.find((e) => e.name === addSetFor)}
           fieldValues={setFieldValues}
+          isEditing={editingSetIndex !== null && editingSetIndex !== undefined}
           onFieldChange={(key, val) =>
             setSetFieldValues((p) => ({ ...p, [key]: val }))
           }
           onSave={saveSet}
-          onClose={() => setModal(null)}
+          onClose={() => {
+            setEditingSetIndex(null);
+            setAddSetFor(null);
+            setModal(null);
+          }}
         />
       )}
 
@@ -586,8 +687,10 @@ export default function TodayScreen({
         <PlanModal
           styles={styles}
           C={C}
-          plans={WORKOUT_PLANS}
+          plans={workoutPlans}
+          exerciseLibrary={exLib}
           onSelectPlan={addPlan}
+          onSavePlans={persistPlans}
           onClose={() => setModal(null)}
         />
       )}
@@ -600,6 +703,23 @@ export default function TodayScreen({
           workouts={workouts}
           onSelectDate={copyWorkoutFrom}
           onClose={() => setModal(null)}
+        />
+      )}
+
+      {modal === "exerciseNote" && (
+        <ExerciseNoteModal
+          styles={styles}
+          C={C}
+          exerciseName={noteExName}
+          value={noteDraft}
+          onChange={setNoteDraft}
+          onSave={saveExerciseNoteModal}
+          onClear={clearExerciseNoteModal}
+          onClose={() => {
+            setNoteExName(null);
+            setNoteDraft("");
+            setModal(null);
+          }}
         />
       )}
 
@@ -616,7 +736,7 @@ export default function TodayScreen({
           onClose={() => setModal(null)}
         />
       )}
-    </View>
+    </KeyboardSafeView>
   );
 }
 
@@ -699,13 +819,21 @@ function ExerciseCard({
   fields,
   isPR,
   prevSessions = [],
+  note = "",
+  canMoveUp,
+  canMoveDown,
+  onMoveUp,
+  onMoveDown,
+  onOpenNote,
   onAddSet,
+  onEditSet,
   onRemoveEx,
   onRemoveSet,
   styles,
   C,
 }) {
   const displayFields = fields?.length ? fields : [];
+  const hasNote = Boolean(note?.trim());
 
   return (
     <View style={styles.exerciseCard}>
@@ -726,7 +854,7 @@ function ExerciseCard({
             </Text>
           </View>
         </View>
-        <View style={{ flexDirection: "row", gap: 8, alignItems: "center" }}>
+        <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
           {isPR && ex.sets.length > 0 && (
             <MaterialCommunityIcons
               name="trophy"
@@ -734,6 +862,47 @@ function ExerciseCard({
               color={C.gold}
             />
           )}
+          <View style={styles.reorderRow}>
+            <TouchableOpacity
+              onPress={onMoveUp}
+              disabled={!canMoveUp}
+              style={[
+                styles.reorderBtn,
+                !canMoveUp && styles.reorderBtnDisabled,
+              ]}
+              hitSlop={{ top: 8, bottom: 8, left: 6, right: 2 }}
+              accessibilityLabel="Move exercise up"
+            >
+              <MaterialCommunityIcons
+                name="chevron-up"
+                size={18}
+                color={canMoveUp ? C.accent : C.muted}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onMoveDown}
+              disabled={!canMoveDown}
+              style={[
+                styles.reorderBtn,
+                !canMoveDown && styles.reorderBtnDisabled,
+              ]}
+              hitSlop={{ top: 8, bottom: 8, left: 2, right: 6 }}
+              accessibilityLabel="Move exercise down"
+            >
+              <MaterialCommunityIcons
+                name="chevron-down"
+                size={18}
+                color={canMoveDown ? C.accent : C.muted}
+              />
+            </TouchableOpacity>
+          </View>
+          <TouchableOpacity onPress={onOpenNote} style={styles.iconBtn}>
+            <MaterialCommunityIcons
+              name={hasNote ? "note-text" : "note-text-outline"}
+              size={18}
+              color={hasNote ? C.accent : C.muted}
+            />
+          </TouchableOpacity>
           <TouchableOpacity onPress={onRemoveEx} style={styles.iconBtn}>
             <MaterialCommunityIcons
               name="close"
@@ -787,7 +956,11 @@ function ExerciseCard({
                     />
                   </TouchableOpacity>
                 </View>
-                <View style={styles.setFieldsGrid}>
+                <TouchableOpacity
+                  activeOpacity={0.75}
+                  onPress={() => onEditSet?.(i)}
+                  style={styles.setFieldsGrid}
+                >
                   {displayFields.map((f) => (
                     <View key={f.key} style={styles.setFieldItem}>
                       <Text style={styles.setFieldLabel}>{f.label}</Text>
@@ -801,7 +974,7 @@ function ExerciseCard({
                       </Text>
                     </View>
                   ))}
-                </View>
+                </TouchableOpacity>
               </View>
             );
           })}
@@ -867,19 +1040,34 @@ function AddSetModal({
   onFieldChange,
   onSave,
   onClose,
+  isEditing = false,
   styles,
   C,
 }) {
   const fields = getExerciseFields(exercise || { name: exerciseName, category: "Custom" });
+  const [kbPad, setKbPad] = useState(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const onShow = Keyboard.addListener(showEvent, (e) => {
+      const h = e?.endCoordinates?.height || 0;
+      // On Android resize mode already shrinks the window — only nudge a little.
+      setKbPad(Platform.OS === "android" ? Math.min(h * 0.15, 48) : Math.max(h - 12, 0));
+    });
+    const onHide = Keyboard.addListener(hideEvent, () => setKbPad(0));
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
+  }, []);
+
   return (
     <Modal transparent animationType="slide" visible>
-      <KeyboardAvoidingView
-        style={styles.modalOverlay}
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-      >
+      <View style={[styles.modalOverlay, kbPad > 0 && { paddingBottom: kbPad }]}>
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>ADD SET</Text>
+            <Text style={styles.modalTitle}>{isEditing ? "EDIT SET" : "ADD SET"}</Text>
             <TouchableOpacity onPress={onClose}>
               <MaterialCommunityIcons
                 name="close"
@@ -912,10 +1100,12 @@ function AddSetModal({
             onPress={onSave}
           >
             <MaterialCommunityIcons name="check" size={18} color="#000" />
-            <Text style={styles.buttonTextPrimary}>SAVE SET</Text>
+            <Text style={styles.buttonTextPrimary}>
+              {isEditing ? "UPDATE SET" : "SAVE SET"}
+            </Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }
@@ -934,7 +1124,10 @@ function AddExerciseModal({
 }) {
   return (
     <Modal transparent animationType="slide" visible>
-      <View style={styles.modalOverlay}>
+      <KeyboardAvoidingView
+        style={styles.modalOverlay}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
         <View style={styles.modalContent}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>ADD EXERCISE</Text>
@@ -963,7 +1156,7 @@ function AddExerciseModal({
             />
           </View>
 
-          <ScrollView style={{ maxHeight: "70%" }}>
+          <ScrollView style={{ maxHeight: "70%" }} keyboardShouldPersistTaps="handled">
             {categoryList.map((cat) => {
               const exs = groupedAdd(cat);
               if (!exs.length) return null;
@@ -1003,12 +1196,242 @@ function AddExerciseModal({
             <Text style={styles.buttonTextOutline}>Create Custom</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
-function PlanModal({ plans, onSelectPlan, onClose, styles, C }) {
+function PlanModal({ plans, exerciseLibrary, onSelectPlan, onSavePlans, onClose, styles, C }) {
+  const [editing, setEditing] = useState(null); // plan object or { id:null } for new
+  const [draftName, setDraftName] = useState("");
+  const [draftExs, setDraftExs] = useState([]);
+  const [exSearch, setExSearch] = useState("");
+  const [catFilter, setCatFilter] = useState("All");
+
+  const planCategories = useMemo(() => {
+    const cats = [
+      ...new Set(
+        (exerciseLibrary || [])
+          .map((e) => e.category)
+          .filter(Boolean),
+      ),
+    ];
+    const ordered = CATEGORIES.filter((c) => cats.includes(c));
+    const extras = cats.filter((c) => !CATEGORIES.includes(c)).sort();
+    return ["All", ...ordered, ...extras];
+  }, [exerciseLibrary]);
+
+  const openEdit = (plan) => {
+    setEditing(plan || { id: null });
+    setDraftName(plan?.name || "");
+    setDraftExs([...(plan?.exercises || [])]);
+    setExSearch("");
+    setCatFilter("All");
+  };
+
+  const saveEdit = async () => {
+    const name = draftName.trim();
+    if (!name) {
+      Alert.alert("Name required", "Give this plan a name.");
+      return;
+    }
+    if (!draftExs.length) {
+      Alert.alert("Add exercises", "A plan needs at least one exercise.");
+      return;
+    }
+    let next;
+    if (editing?.id) {
+      next = plans.map((p) =>
+        p.id === editing.id ? { ...p, name, exercises: draftExs } : p,
+      );
+    } else {
+      next = [...plans, { id: createPlanId(), name, exercises: draftExs }];
+    }
+    await onSavePlans(next);
+    setEditing(null);
+  };
+
+  const deletePlan = (plan) => {
+    const message = `Remove "${plan.name}"?`;
+    const doDelete = async () => {
+      await onSavePlans(plans.filter((p) => p.id !== plan.id));
+      if (editing?.id === plan.id) setEditing(null);
+    };
+    if (Platform.OS === "web") {
+      if (typeof window !== "undefined" && window.confirm(`Delete plan?\n\n${message}`)) {
+        doDelete();
+      }
+      return;
+    }
+    Alert.alert("Delete plan?", message, [
+      { text: "Cancel", style: "cancel" },
+      { text: "Delete", style: "destructive", onPress: doDelete },
+    ]);
+  };
+
+  const addExToDraft = (name) => {
+    if (!draftExs.includes(name)) setDraftExs((p) => [...p, name]);
+  };
+
+  const removeExFromDraft = (name) => {
+    setDraftExs((p) => p.filter((n) => n !== name));
+  };
+
+  const moveDraftEx = (name, dir) => {
+    const idx = draftExs.indexOf(name);
+    const target = idx + dir;
+    if (idx < 0 || target < 0 || target >= draftExs.length) return;
+    const next = [...draftExs];
+    [next[idx], next[target]] = [next[target], next[idx]];
+    setDraftExs(next);
+  };
+
+  const q = exSearch.trim().toLowerCase();
+  const filteredLib = (exerciseLibrary || [])
+    .filter((e) => !draftExs.includes(e.name))
+    .filter((e) => !q || e.name.toLowerCase().includes(q))
+    // Category chips filter the list; typing in search looks across ALL categories.
+    .filter((e) => q || catFilter === "All" || e.category === catFilter);
+
+  if (editing) {
+    return (
+      <Modal transparent animationType="slide" visible>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : undefined}
+        >
+          <View style={[styles.modalContent, { maxHeight: "92%", flexShrink: 1 }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {editing.id ? "EDIT PLAN" : "NEW PLAN"}
+              </Text>
+              <TouchableOpacity onPress={() => setEditing(null)}>
+                <MaterialCommunityIcons name="close" size={24} color={C.muted} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView
+              style={{ flexGrow: 1, flexShrink: 1 }}
+              contentContainerStyle={{ paddingBottom: 8 }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator
+            >
+              <Text style={styles.inputLabel}>PLAN NAME</Text>
+              <TextInput
+                style={[styles.input, { marginBottom: 12 }]}
+                placeholder="e.g. Leg Day — Calorie Crusher"
+                placeholderTextColor={C.muted}
+                value={draftName}
+                onChangeText={setDraftName}
+              />
+
+              <Text style={styles.inputLabel}>EXERCISES ({draftExs.length})</Text>
+              {draftExs.length === 0 ? (
+                <Text style={{ color: C.muted, fontSize: 12, marginBottom: 10 }}>
+                  No exercises yet — pick a category or search below.
+                </Text>
+              ) : (
+                draftExs.map((name, i) => (
+                  <View key={name} style={styles.planEditRow}>
+                    <Text style={styles.planEditName} numberOfLines={1}>{name}</Text>
+                    <TouchableOpacity onPress={() => moveDraftEx(name, -1)} disabled={i === 0} style={{ opacity: i === 0 ? 0.3 : 1 }}>
+                      <MaterialCommunityIcons name="chevron-up" size={18} color={C.muted} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => moveDraftEx(name, 1)} disabled={i === draftExs.length - 1} style={{ opacity: i === draftExs.length - 1 ? 0.3 : 1 }}>
+                      <MaterialCommunityIcons name="chevron-down" size={18} color={C.muted} />
+                    </TouchableOpacity>
+                    <TouchableOpacity onPress={() => removeExFromDraft(name)}>
+                      <MaterialCommunityIcons name="close" size={18} color={C.error || C.muted} />
+                    </TouchableOpacity>
+                  </View>
+                ))
+              )}
+
+              <Text style={[styles.inputLabel, { marginTop: 12 }]}>CATEGORY FILTER</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={{ marginBottom: 8, maxHeight: 40 }}
+                contentContainerStyle={{ gap: 8, paddingRight: 8 }}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled
+              >
+                {planCategories.map((cat) => {
+                  const active = catFilter === cat;
+                  const chipColor = cat === "All" ? C.accent : (CATEGORY_COLORS[cat] || C.accent);
+                  return (
+                    <TouchableOpacity
+                      key={cat}
+                      style={[
+                        styles.filterChip,
+                        active && { backgroundColor: chipColor, borderColor: chipColor },
+                      ]}
+                      onPress={() => setCatFilter(cat)}
+                    >
+                      <Text
+                        style={[
+                          styles.filterChipText,
+                          active && { color: "#000", fontWeight: "800" },
+                        ]}
+                      >
+                        {cat}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+
+              <View style={styles.searchBox}>
+                <MaterialCommunityIcons name="magnify" size={18} color={C.muted} />
+                <TextInput
+                  style={styles.searchInput}
+                  placeholder={catFilter === "All" ? "Search all exercises..." : `Search in ${catFilter}...`}
+                  placeholderTextColor={C.muted}
+                  value={exSearch}
+                  onChangeText={setExSearch}
+                />
+                {exSearch ? (
+                  <TouchableOpacity onPress={() => setExSearch("")}>
+                    <MaterialCommunityIcons name="close" size={16} color={C.muted} />
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+
+              {filteredLib.length === 0 ? (
+                <Text style={{ color: C.muted, fontSize: 12, textAlign: "center", paddingVertical: 16 }}>
+                  No exercises match.
+                </Text>
+              ) : (
+                filteredLib.map((e) => (
+                  <TouchableOpacity key={e.name} style={styles.exListItem} onPress={() => addExToDraft(e.name)}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.exListItemText}>{e.name}</Text>
+                      {e.category ? (
+                        <Text style={{ color: CATEGORY_COLORS[e.category] || C.muted, fontSize: 10, fontWeight: "700" }}>
+                          {e.category}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <MaterialCommunityIcons name="plus" size={16} color={C.accent} />
+                  </TouchableOpacity>
+                ))
+              )}
+            </ScrollView>
+
+            <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+              <TouchableOpacity style={[styles.button, styles.buttonOutline, { flex: 1 }]} onPress={() => setEditing(null)}>
+                <Text style={styles.buttonTextOutline}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={[styles.button, styles.buttonPrimary, { flex: 1 }]} onPress={saveEdit}>
+                <Text style={styles.buttonTextPrimary}>Save Plan</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    );
+  }
+
   return (
     <Modal transparent animationType="slide" visible>
       <View style={styles.modalOverlay}>
@@ -1016,32 +1439,39 @@ function PlanModal({ plans, onSelectPlan, onClose, styles, C }) {
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>QUICK START PLANS</Text>
             <TouchableOpacity onPress={onClose}>
-              <MaterialCommunityIcons
-                name="close"
-                size={24}
-                color={C.muted}
-              />
+              <MaterialCommunityIcons name="close" size={24} color={C.muted} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView>
-            {Object.entries(plans).map(([name, exs]) => (
-              <TouchableOpacity
-                key={name}
-                style={styles.planItem}
-                onPress={() => {
-                  onSelectPlan(name);
-                  onClose();
-                }}
-              >
-                <Text style={styles.planName}>{name}</Text>
-                <Text style={styles.planExercises}>
-                  {exs.slice(0, 3).join(" • ")}
-                  {exs.length > 3 ? ` +${exs.length - 3}` : ""}
-                </Text>
-              </TouchableOpacity>
+          <ScrollView style={{ maxHeight: "70%" }}>
+            {(plans || []).map((plan) => (
+              <View key={plan.id} style={styles.planItem}>
+                <TouchableOpacity style={{ flex: 1 }} onPress={() => onSelectPlan(plan)}>
+                  <Text style={styles.planName}>{plan.name}</Text>
+                  <Text style={styles.planExercises}>
+                    {(plan.exercises || []).slice(0, 3).join(" • ")}
+                    {(plan.exercises || []).length > 3
+                      ? ` +${plan.exercises.length - 3}`
+                      : ""}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => openEdit(plan)}>
+                  <MaterialCommunityIcons name="pencil-outline" size={18} color={C.accent} />
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.iconBtn} onPress={() => deletePlan(plan)}>
+                  <MaterialCommunityIcons name="trash-can-outline" size={18} color={C.error || C.muted} />
+                </TouchableOpacity>
+              </View>
             ))}
           </ScrollView>
+
+          <TouchableOpacity
+            style={[styles.button, styles.buttonOutline, { marginTop: 8 }]}
+            onPress={() => openEdit(null)}
+          >
+            <MaterialCommunityIcons name="plus" size={16} color={C.accent} />
+            <Text style={styles.buttonTextOutline}>Create Plan</Text>
+          </TouchableOpacity>
         </View>
       </View>
     </Modal>
@@ -1049,57 +1479,170 @@ function PlanModal({ plans, onSelectPlan, onClose, styles, C }) {
 }
 
 function CopyWorkoutModal({ previousDates, workouts, onSelectDate, onClose, styles, C }) {
+  const [filter, setFilter] = useState("All");
+
+  const nameFilters = useMemo(() => {
+    const names = new Set();
+    previousDates.forEach((d) => {
+      const title = (workouts[d]?.dayTitle || "").trim();
+      if (title) names.add(title);
+    });
+    return ["All", ...Array.from(names).sort((a, b) => a.localeCompare(b))];
+  }, [previousDates, workouts]);
+
+  const filteredDates = useMemo(() => {
+    if (filter === "All") return previousDates;
+    return previousDates.filter(
+      (d) => (workouts[d]?.dayTitle || "").trim() === filter,
+    );
+  }, [previousDates, workouts, filter]);
+
   return (
     <Modal transparent animationType="slide" visible>
       <View style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+        <View style={[styles.modalContent, { maxHeight: "88%" }]}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>COPY WORKOUT</Text>
             <TouchableOpacity onPress={onClose}>
-              <MaterialCommunityIcons
-                name="close"
-                size={24}
-                color={C.muted}
-              />
+              <MaterialCommunityIcons name="close" size={24} color={C.muted} />
             </TouchableOpacity>
           </View>
 
           <Text style={styles.modalDescription}>
-            Select a previous workout to copy all exercises and sets:
+            Scroll all past workouts (newest first). Filter by saved workout name:
           </Text>
 
-          <ScrollView>
-            {previousDates.map((date) => {
-              const wk = workouts[date];
-              const exCount = wk?.exs?.length || 0;
-              const setCount =
-                wk?.exs?.reduce((s, ex) => s + (ex.sets?.length || 0), 0) || 0;
-
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginBottom: 10, maxHeight: 40 }}
+            contentContainerStyle={{ gap: 8, paddingRight: 8 }}
+          >
+            {nameFilters.map((name) => {
+              const active = filter === name;
               return (
                 <TouchableOpacity
-                  key={date}
-                  style={styles.copyItem}
-                  onPress={() => onSelectDate(date)}
+                  key={name}
+                  style={[
+                    styles.filterChip,
+                    active && { backgroundColor: C.accent, borderColor: C.accent },
+                  ]}
+                  onPress={() => setFilter(name)}
                 >
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.copyDate}>{prettyDate(date)}</Text>
-                    {wk?.dayTitle ? (
-                      <Text style={styles.copyDayTitle}>{wk.dayTitle}</Text>
-                    ) : null}
-                    <Text style={styles.copyDetails}>
-                      {exCount} exercise{exCount !== 1 ? "s" : ""} • {setCount}{" "}
-                      set{setCount !== 1 ? "s" : ""}
-                    </Text>
-                  </View>
-                  <MaterialCommunityIcons
-                    name="content-copy"
-                    size={18}
-                    color={C.accent}
-                  />
+                  <Text
+                    style={[
+                      styles.filterChipText,
+                      active && { color: "#000", fontWeight: "800" },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {name}
+                  </Text>
                 </TouchableOpacity>
               );
             })}
           </ScrollView>
+
+          <ScrollView style={{ maxHeight: 420 }} keyboardShouldPersistTaps="handled">
+            {filteredDates.length === 0 ? (
+              <Text style={{ color: C.muted, fontSize: 13, textAlign: "center", paddingVertical: 24 }}>
+                No workouts match this filter.
+              </Text>
+            ) : (
+              filteredDates.map((date) => {
+                const wk = workouts[date];
+                const exCount = wk?.exs?.length || 0;
+                const setCount =
+                  wk?.exs?.reduce((s, ex) => s + (ex.sets?.length || 0), 0) || 0;
+
+                return (
+                  <TouchableOpacity
+                    key={date}
+                    style={styles.copyItem}
+                    onPress={() => onSelectDate(date)}
+                  >
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.copyDate}>{prettyDate(date)}</Text>
+                      {wk?.dayTitle ? (
+                        <Text style={styles.copyDayTitle}>{wk.dayTitle}</Text>
+                      ) : null}
+                      <Text style={styles.copyDetails}>
+                        {exCount} exercise{exCount !== 1 ? "s" : ""} • {setCount}{" "}
+                        set{setCount !== 1 ? "s" : ""}
+                      </Text>
+                    </View>
+                    <MaterialCommunityIcons
+                      name="content-copy"
+                      size={18}
+                      color={C.accent}
+                    />
+                  </TouchableOpacity>
+                );
+              })
+            )}
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+function ExerciseNoteModal({ exerciseName, value, onChange, onSave, onClear, onClose, styles, C }) {
+  const [kbPad, setKbPad] = useState(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
+    const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
+    const onShow = Keyboard.addListener(showEvent, (e) => {
+      const h = e?.endCoordinates?.height || 0;
+      setKbPad(Platform.OS === "android" ? Math.min(h * 0.15, 48) : Math.max(h - 12, 0));
+    });
+    const onHide = Keyboard.addListener(hideEvent, () => setKbPad(0));
+    return () => {
+      onShow.remove();
+      onHide.remove();
+    };
+  }, []);
+
+  return (
+    <Modal transparent animationType="slide" visible>
+      <View style={[styles.modalOverlay, kbPad > 0 && { paddingBottom: kbPad }]}>
+        <View style={styles.modalContent}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>EXERCISE NOTES</Text>
+            <TouchableOpacity onPress={onClose}>
+              <MaterialCommunityIcons name="close" size={24} color={C.muted} />
+            </TouchableOpacity>
+          </View>
+          <Text style={[styles.exerciseName, { marginBottom: 8 }]}>{exerciseName}</Text>
+          <Text style={styles.modalDescription}>
+            Tips, cues, or form notes sync across every future workout of this exercise.
+          </Text>
+          <TextInput
+            style={[styles.input, styles.noteInput]}
+            placeholder="e.g. Keep chest up, pause at bottom..."
+            placeholderTextColor={C.muted}
+            value={value}
+            onChangeText={onChange}
+            multiline
+            textAlignVertical="top"
+            autoFocus
+          />
+          <View style={{ flexDirection: "row", gap: 8 }}>
+            <TouchableOpacity
+              style={[styles.button, styles.buttonOutline, { flex: 1 }]}
+              onPress={onClear}
+            >
+              <Text style={styles.buttonTextOutline}>Clear</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.button, styles.buttonPrimary, { flex: 1 }]}
+              onPress={onSave}
+            >
+              <MaterialCommunityIcons name="check" size={18} color="#000" />
+              <Text style={styles.buttonTextPrimary}>Save</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>
@@ -1284,14 +1827,13 @@ const createStyles = (C) => StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingTop: 8,
+    paddingVertical: 8,
     backgroundColor: C.card,
     borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
   headerTitle: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: "700",
     color: C.text,
     letterSpacing: 1,
@@ -1299,12 +1841,6 @@ const createStyles = (C) => StyleSheet.create({
   headerDate: {
     fontSize: 12,
     color: C.muted,
-    marginTop: 2,
-  },
-  headerDayTitle: {
-    fontSize: 13,
-    color: C.text,
-    fontWeight: "700",
     marginTop: 2,
   },
   syncing: {
@@ -1319,22 +1855,22 @@ const createStyles = (C) => StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     backgroundColor: C.surface,
     borderBottomWidth: 1,
     borderBottomColor: C.border,
   },
   dateBtn: {
-    padding: 8,
+    padding: 6,
     borderRadius: 8,
   },
   dateDisplay: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     backgroundColor: C.card,
     borderRadius: 8,
   },
@@ -1348,8 +1884,8 @@ const createStyles = (C) => StyleSheet.create({
     borderWidth: 1,
     borderColor: C.accent,
     borderRadius: 8,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
   todayBadgeText: {
     color: C.accent,
@@ -1359,9 +1895,9 @@ const createStyles = (C) => StyleSheet.create({
   dayTitleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
     backgroundColor: C.card,
     borderBottomWidth: 1,
     borderBottomColor: C.border,
@@ -1369,26 +1905,27 @@ const createStyles = (C) => StyleSheet.create({
   dayTitleInput: {
     flex: 1,
     color: C.text,
-    fontSize: 15,
-    fontWeight: "700",
-    paddingVertical: 4,
+    fontSize: 14,
+    fontWeight: "600",
+    paddingVertical: 2,
   },
   stats: {
     flexDirection: "row",
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 8,
     gap: 8,
   },
   statCard: {
     flex: 1,
     backgroundColor: C.card,
     borderRadius: 10,
-    padding: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: C.border,
   },
   statValue: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "900",
     letterSpacing: 0.5,
   },
@@ -1396,7 +1933,7 @@ const createStyles = (C) => StyleSheet.create({
     fontSize: 9,
     color: C.muted,
     fontWeight: "700",
-    marginTop: 4,
+    marginTop: 2,
     letterSpacing: 1,
   },
   scrollContent: {
@@ -1404,7 +1941,7 @@ const createStyles = (C) => StyleSheet.create({
   },
   scrollInner: {
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 8,
     paddingBottom: 48,
   },
   exerciseCard: {
@@ -1441,6 +1978,18 @@ const createStyles = (C) => StyleSheet.create({
   },
   iconBtn: {
     padding: 6,
+  },
+  reorderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  reorderBtn: {
+    padding: 4,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  reorderBtnDisabled: {
+    opacity: 0.35,
   },
   setsContainer: {
     paddingHorizontal: 12,
@@ -1800,6 +2349,9 @@ const createStyles = (C) => StyleSheet.create({
     marginBottom: 10,
     borderWidth: 1,
     borderColor: C.border,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
   planName: {
     color: C.text,
@@ -1810,6 +2362,56 @@ const createStyles = (C) => StyleSheet.create({
   planExercises: {
     color: C.muted,
     fontSize: 11,
+  },
+  planEditRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  planEditName: {
+    flex: 1,
+    color: C.text,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  filterChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: C.border,
+    backgroundColor: C.surface,
+    maxWidth: 160,
+  },
+  filterChipText: {
+    color: C.text,
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  notePreview: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: `${C.accent}10`,
+    borderBottomWidth: 1,
+    borderBottomColor: C.border,
+  },
+  notePreviewText: {
+    flex: 1,
+    color: C.muted,
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  noteInput: {
+    minHeight: 120,
+    maxHeight: 200,
+    marginBottom: 14,
+    textAlignVertical: "top",
   },
   modalDescription: {
     color: C.muted,

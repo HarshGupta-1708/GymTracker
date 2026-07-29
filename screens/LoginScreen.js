@@ -76,7 +76,7 @@ export default function LoginScreen({ onGuestLogin }) {
               color={C.accent}
             />
           </View>
-          <Text style={styles.appTitle}>GYM TRACKER</Text>
+          <Text style={styles.appTitle}>FitTrack</Text>
           <Text style={styles.subtitle}>Premium Workout Logger</Text>
         </View>
 

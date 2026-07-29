@@ -2,6 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { useEffect, useMemo, useState } from "react";
 import {
   Alert,
+  KeyboardAvoidingView,
   Modal,
   Platform,
   ScrollView,
@@ -143,7 +144,11 @@ export default function CustomExerciseForm({
 
   return (
     <Modal transparent animationType="slide" visible={visible}>
-      <View style={styles.overlay}>
+      <KeyboardAvoidingView
+        style={styles.overlay}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        keyboardVerticalOffset={Platform.OS === "android" ? 24 : 0}
+      >
         <View style={styles.content}>
           <View style={styles.header}>
             <Text style={styles.title}>{title}</Text>
@@ -152,7 +157,12 @@ export default function CustomExerciseForm({
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={{ maxHeight: "75%" }} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={{ maxHeight: "75%" }}
+            showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+          >
             <Text style={styles.label}>EXERCISE NAME</Text>
             <TextInput
               style={styles.input}
@@ -274,7 +284,7 @@ export default function CustomExerciseForm({
             <Text style={styles.saveBtnText}>{saveLabel}</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }

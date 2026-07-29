@@ -1,5 +1,5 @@
 import React, { useMemo, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Modal, Platform, TextInput, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator, Modal, Platform, TextInput, Pressable, KeyboardAvoidingView } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import HistoryExerciseCard from '../components/HistoryExerciseCard';
 import { prettyDate, todayStr, PRESET_EXERCISES } from "../constants/data";
@@ -197,7 +197,11 @@ export default function HistoryScreen({ workouts, loading, onWorkoutsChange, exe
       </ScrollView>
 
       <Modal visible={Boolean(selectedDate)} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "android" ? 24 : 0}
+        >
           <View style={[styles.modalCard, viewMode === 'full' && styles.modalCardFull]}>
             <View style={styles.modalHeader}>
               <View style={{ flex: 1 }}>
@@ -229,7 +233,7 @@ export default function HistoryScreen({ workouts, loading, onWorkoutsChange, exe
             </View>
 
             {selectedWorkout && (
-              <ScrollView showsVerticalScrollIndicator={false}>
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
                 {viewMode === 'summary' && (
                   <View style={styles.dayTitleEditRow}>
                     <MaterialCommunityIcons name="label-outline" size={16} color={C.accent} />
@@ -285,7 +289,7 @@ export default function HistoryScreen({ workouts, loading, onWorkoutsChange, exe
               </ScrollView>
             )}
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );

@@ -2,7 +2,7 @@ import { MaterialCommunityIcons } from "@expo/vector-icons";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 
-export default function AppSplash({ message = "Loading GYM TRACKER..." }) {
+export default function AppSplash({ message = "Loading FitTrack..." }) {
   const { colors: C } = useTheme();
   const styles = createStyles(C);
 
@@ -11,7 +11,7 @@ export default function AppSplash({ message = "Loading GYM TRACKER..." }) {
       <View style={styles.iconWrap}>
         <MaterialCommunityIcons name="dumbbell" size={56} color={C.accent} />
       </View>
-      <Text style={styles.title}>GYM TRACKER</Text>
+      <Text style={styles.title}>FitTrack</Text>
       <ActivityIndicator size="large" color={C.accent} style={styles.spinner} />
       <Text style={styles.message}>{message}</Text>
     </View>

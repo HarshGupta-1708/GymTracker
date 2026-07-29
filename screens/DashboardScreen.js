@@ -1,7 +1,9 @@
 import React, { useMemo, useState, useEffect } from "react";
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, TextInput, Alert, Platform, Image } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, Modal, TextInput, Alert, Platform, Image, KeyboardAvoidingView, Dimensions } from "react-native";
 import { MaterialCommunityIcons } from "@expo/vector-icons";
 import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from "expo-file-system/legacy";
+import * as Sharing from "expo-sharing";
 import { USER_GOALS_DEFAULT, todayStr, prettyDate, timeStr } from "../constants/data";
 import { calculateStreaks, listenUserSettings, saveUserSettings, listenBodyPhotos, saveBodyPhotoEntry, deleteBodyPhotoEntry, getWorkouts } from "../utils/firestore";
 import { exportUserData, importUserData } from "../utils/backup";
@@ -100,6 +102,7 @@ export default function DashboardScreen({
   const [cropRequest, setCropRequest] = useState(null); // { uri, type } — web crop flow
   const [showBodyHistoryModal, setShowBodyHistoryModal] = useState(false);
   const [activeHistoryPhoto, setActiveHistoryPhoto] = useState(null);
+  const [fullscreenPhoto, setFullscreenPhoto] = useState(null);
   const [backupBusy, setBackupBusy] = useState(false);
 
   // Sync profileData when settings change
@@ -218,6 +221,42 @@ export default function DashboardScreen({
         ? "Profile updated! Tip: use “Save to Body History” to store your body photo + measurements as a dated snapshot."
         : "Profile updated successfully!",
     );
+  };
+
+  const downloadBodyPhoto = async (photoUri, label = "body") => {
+    if (!photoUri) {
+      Alert.alert("No photo", "This entry has measurements only.");
+      return;
+    }
+    try {
+      if (Platform.OS === "web") {
+        const a = document.createElement("a");
+        a.href = photoUri;
+        a.download = `fittrack-${label}-${Date.now()}.jpg`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        return;
+      }
+      const match = String(photoUri).match(/^data:(image\/\w+);base64,(.+)$/);
+      const ext = match?.[1]?.includes("png") ? "png" : "jpg";
+      const base64 = match?.[2] || photoUri;
+      const path = `${FileSystem.cacheDirectory}fittrack-${label}-${Date.now()}.${ext}`;
+      await FileSystem.writeAsStringAsync(path, base64, {
+        encoding: FileSystem.EncodingType.Base64,
+      });
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(path, {
+          mimeType: `image/${ext === "png" ? "png" : "jpeg"}`,
+          dialogTitle: "Save FitTrack photo",
+        });
+      } else {
+        Alert.alert("Saved", `Photo written to ${path}`);
+      }
+    } catch (err) {
+      console.error("Download photo failed:", err);
+      Alert.alert("Download failed", err?.message || "Could not save photo");
+    }
   };
 
   // Stores a dated snapshot (photo optional + measurements) in Body Progress History.
@@ -668,7 +707,10 @@ export default function DashboardScreen({
 
       {/* Goal Setting Modal */}
       <Modal visible={showGoalModal} transparent animationType="fade">
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+        >
           <View style={styles.modalContent}>
             <Text style={styles.modalTitle}>SET WEEKLY GOAL</Text>
             <Text style={styles.modalSubtitle}>How many workouts per week?</Text>
@@ -697,12 +739,16 @@ export default function DashboardScreen({
               </TouchableOpacity>
             </View>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Profile Modal */}
       <Modal visible={showProfileModal} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
+        <KeyboardAvoidingView
+          style={styles.modalOverlay}
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          keyboardVerticalOffset={Platform.OS === "android" ? 24 : 0}
+        >
           <View style={[styles.modalContent, styles.profileModalContent]}>
             <View style={styles.modalHeader}>
               <Text style={styles.modalTitle}>ATHLETE PROFILE</Text>
@@ -711,7 +757,12 @@ export default function DashboardScreen({
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: "80%" }}>
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              style={{ maxHeight: "80%" }}
+              keyboardShouldPersistTaps="handled"
+              keyboardDismissMode="on-drag"
+            >
               {/* Photo Pickers */}
               <View style={styles.photoContainer}>
                 <View style={styles.photoBlock}>
@@ -878,7 +929,7 @@ export default function DashboardScreen({
               </Text>
             </ScrollView>
           </View>
-        </View>
+        </KeyboardAvoidingView>
       </Modal>
 
       {/* Body Photo History Modal */}
@@ -950,9 +1001,9 @@ export default function DashboardScreen({
         {/* Selected Photo Detail Zoom Modal */}
         <Modal visible={Boolean(activeHistoryPhoto)} transparent animationType="fade">
           <View style={[styles.modalOverlay, { backgroundColor: "rgba(0,0,0,0.9)" }]}>
-            <View style={{ width: "90%", maxWidth: 500, backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 16 }}>
+            <View style={{ width: "92%", maxWidth: 520, maxHeight: "92%", backgroundColor: C.card, borderRadius: 12, borderWidth: 1, borderColor: C.border, padding: 16 }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                <Text style={{ color: C.text, fontWeight: "800", fontSize: 14 }}>
+                <Text style={{ color: C.text, fontWeight: "800", fontSize: 14, flex: 1, paddingRight: 8 }}>
                   {activeHistoryPhoto ? prettyDate(activeHistoryPhoto.date) : ""}
                   {activeHistoryPhoto?.time ? (
                     <Text style={{ color: C.muted, fontSize: 11, fontWeight: "600" }}>
@@ -965,13 +1016,28 @@ export default function DashboardScreen({
                 </TouchableOpacity>
               </View>
 
+              <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
               {activeHistoryPhoto && (
                 <View>
                   {activeHistoryPhoto.photo ? (
-                    <Image
-                      source={{ uri: activeHistoryPhoto.photo }}
-                      style={{ width: "100%", height: 260, borderRadius: 8, resizeMode: "contain", backgroundColor: "#000" }}
-                    />
+                    <TouchableOpacity
+                      activeOpacity={0.9}
+                      onPress={() => setFullscreenPhoto(activeHistoryPhoto.photo)}
+                    >
+                      <Image
+                        source={{ uri: activeHistoryPhoto.photo }}
+                        style={{
+                          width: "100%",
+                          height: Math.min(Dimensions.get("window").height * 0.55, 480),
+                          borderRadius: 8,
+                          resizeMode: "contain",
+                          backgroundColor: "#000",
+                        }}
+                      />
+                      <Text style={{ color: C.muted, fontSize: 10, textAlign: "center", marginTop: 6 }}>
+                        Tap photo for full screen
+                      </Text>
+                    </TouchableOpacity>
                   ) : (
                     <View style={{ width: "100%", height: 100, borderRadius: 8, backgroundColor: `${C.accent}0d`, alignItems: "center", justifyContent: "center" }}>
                       <MaterialCommunityIcons name="scale-bathroom" size={36} color={C.accent} />
@@ -1010,6 +1076,25 @@ export default function DashboardScreen({
                       )}
                     </View>
 
+                    {activeHistoryPhoto.photo ? (
+                      <View style={{ flexDirection: "row", gap: 8, marginTop: 12 }}>
+                        <TouchableOpacity
+                          style={[styles.button, styles.secondaryButton, { flex: 1, height: 40, paddingVertical: 0 }]}
+                          onPress={() => setFullscreenPhoto(activeHistoryPhoto.photo)}
+                        >
+                          <MaterialCommunityIcons name="fullscreen" size={16} color={C.accent} />
+                          <Text style={styles.secondaryButtonText}>FULL VIEW</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          style={[styles.button, styles.secondaryButton, { flex: 1, height: 40, paddingVertical: 0 }]}
+                          onPress={() => downloadBodyPhoto(activeHistoryPhoto.photo, activeHistoryPhoto.date)}
+                        >
+                          <MaterialCommunityIcons name="download" size={16} color={C.accent} />
+                          <Text style={styles.secondaryButtonText}>DOWNLOAD</Text>
+                        </TouchableOpacity>
+                      </View>
+                    ) : null}
+
                     <TouchableOpacity
                       style={[styles.button, styles.dangerButton, { marginTop: 14, height: 40, paddingVertical: 0 }]}
                       onPress={() => {
@@ -1036,6 +1121,42 @@ export default function DashboardScreen({
                   </View>
                 </View>
               )}
+              </ScrollView>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Full-screen photo viewer */}
+        <Modal visible={Boolean(fullscreenPhoto)} transparent animationType="fade" onRequestClose={() => setFullscreenPhoto(null)}>
+          <View style={{ flex: 1, backgroundColor: "#000", justifyContent: "center" }}>
+            <TouchableOpacity
+              style={{ position: "absolute", top: Platform.OS === "ios" ? 54 : 24, right: 16, zIndex: 2, padding: 8 }}
+              onPress={() => setFullscreenPhoto(null)}
+            >
+              <MaterialCommunityIcons name="close" size={28} color="#fff" />
+            </TouchableOpacity>
+            {fullscreenPhoto ? (
+              <Image
+                source={{ uri: fullscreenPhoto }}
+                style={{ width: "100%", height: "100%", resizeMode: "contain" }}
+              />
+            ) : null}
+            <View style={{ position: "absolute", bottom: 36, left: 0, right: 0, alignItems: "center" }}>
+              <TouchableOpacity
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                  backgroundColor: C.accent,
+                  paddingHorizontal: 18,
+                  paddingVertical: 12,
+                  borderRadius: 10,
+                }}
+                onPress={() => downloadBodyPhoto(fullscreenPhoto, "full")}
+              >
+                <MaterialCommunityIcons name="download" size={18} color="#000" />
+                <Text style={{ color: "#000", fontWeight: "800", fontSize: 13 }}>DOWNLOAD</Text>
+              </TouchableOpacity>
             </View>
           </View>
         </Modal>

@@ -27,7 +27,7 @@ export const exportUserData = async () => {
   };
 
   const json = JSON.stringify(payload, null, 2);
-  const fileName = `gymtracker-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  const fileName = `fittrack-backup-${new Date().toISOString().slice(0, 10)}.json`;
 
   if (Platform.OS === "web") {
     const blob = new Blob([json], { type: "application/json" });
@@ -48,7 +48,7 @@ export const exportUserData = async () => {
   if (await Sharing.isAvailableAsync()) {
     await Sharing.shareAsync(path, {
       mimeType: "application/json",
-      dialogTitle: "Export Gym Tracker Backup",
+      dialogTitle: "Export FitTrack Backup",
       UTI: "public.json",
     });
   }

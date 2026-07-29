@@ -165,7 +165,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [workouts, setWorkouts] = useState({});
   const [workoutsLoading, setWorkoutsLoading] = useState(true);
-  const [splashMessage, setSplashMessage] = useState("Loading GYM TRACKER...");
+  const [splashMessage, setSplashMessage] = useState("Loading FitTrack...");
   const [exercises, setExercises] = useState(PRESET_EXERCISES);
   const [showWhatsNew, setShowWhatsNew] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);

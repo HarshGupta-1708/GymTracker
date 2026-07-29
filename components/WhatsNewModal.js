@@ -4,11 +4,13 @@ import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 
 const WHATS_NEW = [
-  "Workout history restores automatically when you sign in with Google",
-  "Custom day names (Leg Day, Push Pull) on each workout",
-  "Fully custom exercise fields — add reps, weight, speed, incline, and more",
-  "Export / import backup from Dashboard settings",
-  "Faster updates when you complete a workout",
+  "Now called FitTrack — same account, same history",
+  "Edit, rename, or delete Quick Start plans and their exercises",
+  "Copy Workout: scroll all past days + filter by workout name",
+  "Per-exercise notes that sync across sessions",
+  "Reorder exercises, edit set values without deleting",
+  "Searchable Progress picker + full-size body photo view",
+  "Keyboard no longer covers inputs while typing on phone",
 ];
 
 export default function WhatsNewModal({ visible, version, onDismiss }) {

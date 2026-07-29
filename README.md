@@ -1,4 +1,4 @@
-# Gym Tracker
+# FitTrack
 
 Cross-platform workout tracker built with **React Native (Expo)** — log sets, track progress, sync with **Firebase**, and get tips from a personal **AI Coach** powered by your own training history.
 
