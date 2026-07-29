@@ -1051,9 +1051,8 @@ function AddSetModal({
     const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
     const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
     const onShow = Keyboard.addListener(showEvent, (e) => {
-      const h = e?.endCoordinates?.height || 0;
-      // On Android resize mode already shrinks the window — only nudge a little.
-      setKbPad(Platform.OS === "android" ? Math.min(h * 0.15, 48) : Math.max(h - 12, 0));
+      // Standalone APK Modals often ignore Android adjustResize — lift by full keyboard height.
+      setKbPad(e?.endCoordinates?.height || 0);
     });
     const onHide = Keyboard.addListener(hideEvent, () => setKbPad(0));
     return () => {
@@ -1063,48 +1062,55 @@ function AddSetModal({
   }, []);
 
   return (
-    <Modal transparent animationType="slide" visible>
-      <View style={[styles.modalOverlay, kbPad > 0 && { paddingBottom: kbPad }]}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{isEditing ? "EDIT SET" : "ADD SET"}</Text>
-            <TouchableOpacity onPress={onClose}>
-              <MaterialCommunityIcons
-                name="close"
-                size={24}
-                color={C.muted}
-              />
+    <Modal transparent animationType="slide" visible statusBarTranslucent>
+      <View style={[styles.modalOverlay, { paddingBottom: kbPad }]}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          bounces={false}
+          contentContainerStyle={styles.modalKeyboardScroll}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>{isEditing ? "EDIT SET" : "ADD SET"}</Text>
+              <TouchableOpacity onPress={onClose}>
+                <MaterialCommunityIcons
+                  name="close"
+                  size={24}
+                  color={C.muted}
+                />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.exerciseName}>{exerciseName}</Text>
+
+            <View style={styles.inputGrid}>
+              {fields.map((f) => (
+                <View key={f.key} style={{ flex: 1, minWidth: "45%" }}>
+                  <Text style={styles.inputLabel}>
+                    {f.label.toUpperCase()}{f.unit ? ` (${f.unit})` : ""}
+                  </Text>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="0"
+                    keyboardType="decimal-pad"
+                    value={fieldValues[f.key] || ""}
+                    onChangeText={(v) => onFieldChange(f.key, v)}
+                  />
+                </View>
+              ))}
+            </View>
+
+            <TouchableOpacity
+              style={[styles.button, styles.buttonPrimary]}
+              onPress={onSave}
+            >
+              <MaterialCommunityIcons name="check" size={18} color="#000" />
+              <Text style={styles.buttonTextPrimary}>
+                {isEditing ? "UPDATE SET" : "SAVE SET"}
+              </Text>
             </TouchableOpacity>
           </View>
-          <Text style={styles.exerciseName}>{exerciseName}</Text>
-
-          <View style={styles.inputGrid}>
-            {fields.map((f) => (
-              <View key={f.key} style={{ flex: 1, minWidth: "45%" }}>
-                <Text style={styles.inputLabel}>
-                  {f.label.toUpperCase()}{f.unit ? ` (${f.unit})` : ""}
-                </Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="0"
-                  keyboardType="decimal-pad"
-                  value={fieldValues[f.key] || ""}
-                  onChangeText={(v) => onFieldChange(f.key, v)}
-                />
-              </View>
-            ))}
-          </View>
-
-          <TouchableOpacity
-            style={[styles.button, styles.buttonPrimary]}
-            onPress={onSave}
-          >
-            <MaterialCommunityIcons name="check" size={18} color="#000" />
-            <Text style={styles.buttonTextPrimary}>
-              {isEditing ? "UPDATE SET" : "SAVE SET"}
-            </Text>
-          </TouchableOpacity>
-        </View>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -1594,8 +1600,7 @@ function ExerciseNoteModal({ exerciseName, value, onChange, onSave, onClear, onC
     const showEvent = Platform.OS === "ios" ? "keyboardWillShow" : "keyboardDidShow";
     const hideEvent = Platform.OS === "ios" ? "keyboardWillHide" : "keyboardDidHide";
     const onShow = Keyboard.addListener(showEvent, (e) => {
-      const h = e?.endCoordinates?.height || 0;
-      setKbPad(Platform.OS === "android" ? Math.min(h * 0.15, 48) : Math.max(h - 12, 0));
+      setKbPad(e?.endCoordinates?.height || 0);
     });
     const onHide = Keyboard.addListener(hideEvent, () => setKbPad(0));
     return () => {
@@ -1605,45 +1610,52 @@ function ExerciseNoteModal({ exerciseName, value, onChange, onSave, onClear, onC
   }, []);
 
   return (
-    <Modal transparent animationType="slide" visible>
-      <View style={[styles.modalOverlay, kbPad > 0 && { paddingBottom: kbPad }]}>
-        <View style={styles.modalContent}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>EXERCISE NOTES</Text>
-            <TouchableOpacity onPress={onClose}>
-              <MaterialCommunityIcons name="close" size={24} color={C.muted} />
-            </TouchableOpacity>
+    <Modal transparent animationType="slide" visible statusBarTranslucent>
+      <View style={[styles.modalOverlay, { paddingBottom: kbPad }]}>
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          bounces={false}
+          contentContainerStyle={styles.modalKeyboardScroll}
+        >
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>EXERCISE NOTES</Text>
+              <TouchableOpacity onPress={onClose}>
+                <MaterialCommunityIcons name="close" size={24} color={C.muted} />
+              </TouchableOpacity>
+            </View>
+            <Text style={[styles.exerciseName, { marginBottom: 8 }]}>{exerciseName}</Text>
+            <Text style={styles.modalDescription}>
+              Tips, cues, or form notes sync across every future workout of this exercise.
+            </Text>
+            <TextInput
+              style={[styles.input, styles.noteInput]}
+              placeholder="e.g. Keep chest up, pause at bottom..."
+              placeholderTextColor={C.muted}
+              value={value}
+              onChangeText={onChange}
+              multiline
+              textAlignVertical="top"
+              autoFocus
+            />
+            <View style={{ flexDirection: "row", gap: 8 }}>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonOutline, { flex: 1 }]}
+                onPress={onClear}
+              >
+                <Text style={styles.buttonTextOutline}>Clear</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonPrimary, { flex: 1 }]}
+                onPress={onSave}
+              >
+                <MaterialCommunityIcons name="check" size={18} color="#000" />
+                <Text style={styles.buttonTextPrimary}>Save</Text>
+              </TouchableOpacity>
+            </View>
           </View>
-          <Text style={[styles.exerciseName, { marginBottom: 8 }]}>{exerciseName}</Text>
-          <Text style={styles.modalDescription}>
-            Tips, cues, or form notes sync across every future workout of this exercise.
-          </Text>
-          <TextInput
-            style={[styles.input, styles.noteInput]}
-            placeholder="e.g. Keep chest up, pause at bottom..."
-            placeholderTextColor={C.muted}
-            value={value}
-            onChangeText={onChange}
-            multiline
-            textAlignVertical="top"
-            autoFocus
-          />
-          <View style={{ flexDirection: "row", gap: 8 }}>
-            <TouchableOpacity
-              style={[styles.button, styles.buttonOutline, { flex: 1 }]}
-              onPress={onClear}
-            >
-              <Text style={styles.buttonTextOutline}>Clear</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.button, styles.buttonPrimary, { flex: 1 }]}
-              onPress={onSave}
-            >
-              <MaterialCommunityIcons name="check" size={18} color="#000" />
-              <Text style={styles.buttonTextPrimary}>Save</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
+        </ScrollView>
       </View>
     </Modal>
   );
@@ -2233,6 +2245,17 @@ const createStyles = (C) => StyleSheet.create({
         alignItems: "center",
       }
     })
+  },
+  modalKeyboardScroll: {
+    flexGrow: 1,
+    justifyContent: "flex-end",
+    ...Platform.select({
+      web: {
+        justifyContent: "center",
+        alignItems: "center",
+        padding: 16,
+      },
+    }),
   },
   modalContent: {
     backgroundColor: C.card,

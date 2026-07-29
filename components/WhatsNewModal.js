@@ -4,13 +4,10 @@ import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 
 const WHATS_NEW = [
-  "Now called FitTrack — same account, same history",
-  "Edit, rename, or delete Quick Start plans and their exercises",
-  "Copy Workout: scroll all past days + filter by workout name",
-  "Per-exercise notes that sync across sessions",
-  "Reorder exercises, edit set values without deleting",
-  "Searchable Progress picker + full-size body photo view",
-  "Keyboard no longer covers inputs while typing on phone",
+  "Add Set stays above the keyboard on Android APK",
+  "Progress charts scroll sideways — no more crowded dates",
+  "Exercise picker opens without forcing the keyboard",
+  "Editable plans, notes, copy filters, and FitTrack branding",
 ];
 
 export default function WhatsNewModal({ visible, version, onDismiss }) {

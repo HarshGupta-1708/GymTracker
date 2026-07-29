@@ -75,6 +75,21 @@ export default function ProgressScreen({ workouts, loading }) {
       });
   }, [activeEx, workouts]);
 
+  // Wider chart + thinned labels so many sessions don't pile on top of each other.
+  const chartScrollWidth = useMemo(() => {
+    const n = progData.length || 1;
+    return Math.max(chartWidth, n * 64);
+  }, [progData.length, chartWidth]);
+
+  const chartLabels = useMemo(() => {
+    const n = progData.length;
+    if (n <= 6) return progData.map((d) => d.date);
+    const step = n <= 12 ? 2 : 3;
+    return progData.map((d, i) =>
+      i === 0 || i === n - 1 || i % step === 0 ? d.date : "",
+    );
+  }, [progData]);
+
   // Weekly training load: this week vs last week (progressive overload check)
   const weeklyStats = useMemo(() => {
     const toStr = (d) =>
@@ -201,7 +216,6 @@ export default function ProgressScreen({ workouts, loading }) {
                       placeholderTextColor={C.muted}
                       value={exQuery}
                       onChangeText={setExQuery}
-                      autoFocus
                     />
                     {exQuery ? (
                       <TouchableOpacity onPress={() => setExQuery("")}>
@@ -249,69 +263,81 @@ export default function ProgressScreen({ workouts, loading }) {
                 {/* Max Weight Chart */}
                 <View style={styles.chartCard}>
                   <Text style={styles.chartTitle}>📈 STRENGTH TREND (kg)</Text>
-                  <LineChart
-                    data={{
-                      labels: progData.map(d => d.date),
-                      datasets: [
-                        {
-                          data: progData.map(d => d.maxW),
-                          strokeWidth: 2,
-                          color: () => C.accent,
+                  {progData.length > 6 ? (
+                    <Text style={styles.chartHint}>Swipe chart sideways to see more dates</Text>
+                  ) : null}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={progData.length > 6}>
+                    <LineChart
+                      data={{
+                        labels: chartLabels,
+                        datasets: [
+                          {
+                            data: progData.map(d => d.maxW),
+                            strokeWidth: 2,
+                            color: () => C.accent,
+                          },
+                          {
+                            data: progData.map(d => d.e1rm),
+                            strokeWidth: 2,
+                            color: () => C.gold,
+                          },
+                        ],
+                        legend: ["Max weight", "Est. 1RM"],
+                      }}
+                      width={chartScrollWidth}
+                      height={220}
+                      chartConfig={{
+                        backgroundColor: C.card,
+                        backgroundGradientFrom: C.card,
+                        backgroundGradientTo: C.surface,
+                        decimalPlaces: 0,
+                        color: () => C.muted,
+                        labelColor: () => C.muted,
+                        style: { borderRadius: 0 },
+                        propsForDots: {
+                          r: '4',
+                          strokeWidth: '0',
+                          stroke: C.accent,
                         },
-                        {
-                          data: progData.map(d => d.e1rm),
-                          strokeWidth: 2,
-                          color: () => C.gold,
-                        },
-                      ],
-                      legend: ["Max weight", "Est. 1RM"],
-                    }}
-                    width={chartWidth}
-                    height={220}
-                    chartConfig={{
-                      backgroundColor: C.card,
-                      backgroundGradientFrom: C.card,
-                      backgroundGradientTo: C.surface,
-                      decimalPlaces: 0,
-                      color: () => C.muted,
-                      labelColor: () => C.muted,
-                      style: { borderRadius: 0 },
-                      propsForDots: {
-                        r: '4',
-                        strokeWidth: '0',
-                        stroke: C.accent,
-                      },
-                    }}
-                    style={{ marginVertical: 0, borderRadius: 0 }}
-                    bezier
-                  />
+                      }}
+                      style={{ marginVertical: 0, borderRadius: 0 }}
+                      bezier
+                    />
+                  </ScrollView>
                 </View>
 
                 {/* Volume Chart */}
                 <View style={styles.chartCard}>
                   <Text style={styles.chartTitle}>💪 SESSION VOLUME (kg × reps)</Text>
-                  <BarChart
-                    data={{
-                      labels: progData.map(d => d.date),
-                      datasets: [{
-                        data: progData.map(d => d.vol),
-                      }],
-                    }}
-                    width={chartWidth}
-                    height={220}
-                    chartConfig={{
-                      backgroundColor: C.card,
-                      backgroundGradientFrom: C.card,
-                      backgroundGradientTo: C.surface,
-                      decimalPlaces: 0,
-                      color: () => C.muted,
-                      labelColor: () => C.muted,
-                      propsForBackgroundLines: {
-                        stroke: C.border,
-                      },
-                    }}
-                    style={{ marginVertical: 0, borderRadius: 0 }}
-                  />
+                  {progData.length > 6 ? (
+                    <Text style={styles.chartHint}>Swipe chart sideways to see more dates</Text>
+                  ) : null}
+                  <ScrollView horizontal showsHorizontalScrollIndicator={progData.length > 6}>
+                    <BarChart
+                      data={{
+                        labels: chartLabels,
+                        datasets: [{
+                          data: progData.map(d => d.vol),
+                        }],
+                      }}
+                      width={chartScrollWidth}
+                      height={220}
+                      chartConfig={{
+                        backgroundColor: C.card,
+                        backgroundGradientFrom: C.card,
+                        backgroundGradientTo: C.surface,
+                        decimalPlaces: 0,
+                        color: () => C.muted,
+                        labelColor: () => C.muted,
+                        propsForBackgroundLines: {
+                          stroke: C.border,
+                        },
+                      }}
+                      style={{ marginVertical: 0, borderRadius: 0 }}
+                      fromZero
+                      showValuesOnTopOfBars={progData.length <= 8}
+                    />
+                  </ScrollView>
                 </View>
 
                 {/* Stats for selected exercise */}
@@ -591,6 +617,11 @@ const createStyles = (C) => StyleSheet.create({
     fontWeight: '700',
     color: C.accent,
     marginBottom: 10,
+  },
+  chartHint: {
+    fontSize: 11,
+    color: C.muted,
+    marginBottom: 8,
   },
   statsGrid: {
     flexDirection: 'row',
