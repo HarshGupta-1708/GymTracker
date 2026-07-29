@@ -4,10 +4,10 @@ import { Modal, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useTheme } from "../context/ThemeContext";
 
 const WHATS_NEW = [
-  "Add Set stays above the keyboard on Android APK",
-  "Progress charts scroll sideways — no more crowded dates",
-  "Exercise picker opens without forcing the keyboard",
-  "Editable plans, notes, copy filters, and FitTrack branding",
+  "Dashboard streaks: tap any card for how it’s calculated + your history",
+  "Week streak respects empty weeks; day streak follows completed goal weeks",
+  "Weekly goal shows Completed X/Y this week (no misleading Week N/20)",
+  "Add Set keyboard, scrollable progress charts, and FitTrack branding",
 ];
 
 export default function WhatsNewModal({ visible, version, onDismiss }) {

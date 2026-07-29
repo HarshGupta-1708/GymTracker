@@ -84,6 +84,7 @@ export default function DashboardScreen({
   });
   const [showGoalModal, setShowGoalModal] = useState(false);
   const [tempGoal, setTempGoal] = useState('4');
+  const [streakExplain, setStreakExplain] = useState(null); // longestWeek | currentWeek | longestDay | currentDay
   const [showProfileModal, setShowProfileModal] = useState(false);
   const [showThemeModal, setShowThemeModal] = useState(false);
   const [profileData, setProfileData] = useState({
@@ -313,81 +314,162 @@ export default function DashboardScreen({
     const workoutEntries = Object.entries(workouts || {}).filter(([, w]) => w?.exs?.length);
     const goalsPerWeek = settings?.goalsPerWeek || USER_GOALS_DEFAULT.activitiesPerWeek;
     const activeDaysPerWeek = settings?.activeDaysPerWeek || USER_GOALS_DEFAULT.activeDaysPerWeek;
-    const targetWeeks = settings?.targetWeeks || USER_GOALS_DEFAULT.targetWeeks;
     const todayLogged = Boolean(workouts?.[todayStr()]?.exs?.length);
 
+    const toKey = (d) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const addDays = (dateStr, n) => {
+      const d = new Date(`${dateStr}T12:00`);
+      d.setDate(d.getDate() + n);
+      return toKey(d);
+    };
+    const sundayOf = (dateStr) => {
+      const d = new Date(`${dateStr}T12:00`);
+      d.setDate(d.getDate() - d.getDay());
+      return toKey(d);
+    };
+    const shortLabel = (dateStr) => {
+      const d = new Date(`${dateStr}T12:00`);
+      const wd = d.toLocaleDateString("en-IN", { weekday: "short" }).replace(/\.$/, "");
+      const day = d.getDate();
+      const mon = d.toLocaleDateString("en-IN", { month: "short" }).replace(/\.$/, "");
+      return `${wd} ${day} ${mon}`;
+    };
+    const weekRangeLabel = (start) => `${shortLabel(start)} – ${shortLabel(addDays(start, 6))}`;
+
+    // Group by calendar week (Sunday → Saturday)
     const weekMap = {};
     workoutEntries.forEach(([date]) => {
-      const d = new Date(`${date}T12:00`);
-      const day = d.getDay();
-      const weekStart = new Date(d);
-      weekStart.setDate(d.getDate() - day);
-      const key = `${weekStart.getFullYear()}-${String(weekStart.getMonth() + 1).padStart(2, "0")}-${String(weekStart.getDate()).padStart(2, "0")}`;
-      weekMap[key] = (weekMap[key] || 0) + 1;
+      const key = sundayOf(date);
+      if (!weekMap[key]) weekMap[key] = [];
+      weekMap[key].push(date);
     });
 
-    const weekKeys = Object.keys(weekMap).sort();
+    const thisWeekStart = sundayOf(todayStr());
+    const firstWeekStart = Object.keys(weekMap).sort()[0] || thisWeekStart;
+
+    // Fill every Sun–Sat from first workout week → this week so empty weeks break streaks
+    const weekBreakdown = [];
+    for (let cursor = firstWeekStart; cursor <= thisWeekStart; cursor = addDays(cursor, 7)) {
+      const dates = (weekMap[cursor] || []).slice().sort();
+      const count = dates.length;
+      weekBreakdown.push({
+        weekStart: cursor,
+        weekEnd: addDays(cursor, 6),
+        count,
+        met: count >= goalsPerWeek,
+        dates,
+        label: weekRangeLabel(cursor),
+      });
+    }
+
     let longestWeekStreak = 0;
-    let currentWeekStreak = 0;
     let running = 0;
-    weekKeys.forEach((key) => {
-      if (weekMap[key] >= goalsPerWeek) {
+    let bestWeekRunStart = -1;
+    let bestWeekRunLen = 0;
+    let runStart = -1;
+    weekBreakdown.forEach((w, i) => {
+      if (w.met) {
+        if (running === 0) runStart = i;
         running += 1;
+        if (running > bestWeekRunLen) {
+          bestWeekRunLen = running;
+          bestWeekRunStart = runStart;
+        }
         longestWeekStreak = Math.max(longestWeekStreak, running);
       } else {
         running = 0;
+        runStart = -1;
       }
     });
 
-    const thisWeekStart = (() => {
-      const t = new Date();
-      t.setDate(t.getDate() - t.getDay());
-      return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, "0")}-${String(t.getDate()).padStart(2, "0")}`;
-    })();
-
-    if ((weekMap[thisWeekStart] || 0) >= goalsPerWeek) {
+    const thisWeekEntry = weekBreakdown.find((w) => w.weekStart === thisWeekStart);
+    let currentWeekStreak = 0;
+    if (thisWeekEntry?.met) {
       currentWeekStreak = running;
     } else {
-      let reverseRun = 0;
-      for (let i = weekKeys.length - 1; i >= 0; i--) {
-        if (weekMap[weekKeys[i]] >= goalsPerWeek) reverseRun += 1;
+      for (let i = weekBreakdown.length - 1; i >= 0; i--) {
+        if (weekBreakdown[i].weekStart === thisWeekStart) continue; // in-progress week doesn't break or count
+        if (weekBreakdown[i].met) currentWeekStreak += 1;
         else break;
       }
-      currentWeekStreak = reverseRun;
     }
+
+    const longestWeekHistory =
+      bestWeekRunLen > 0
+        ? weekBreakdown.slice(bestWeekRunStart, bestWeekRunStart + bestWeekRunLen)
+        : [];
+    const currentWeekHistory = (() => {
+      if (currentWeekStreak <= 0) return [];
+      const out = [];
+      for (let i = weekBreakdown.length - 1; i >= 0 && out.length < currentWeekStreak; i--) {
+        if (weekBreakdown[i].weekStart === thisWeekStart && !weekBreakdown[i].met) continue;
+        if (weekBreakdown[i].met) out.unshift(weekBreakdown[i]);
+        else break;
+      }
+      return out;
+    })();
+
+    const formatWeekHistoryLine = (w) => {
+      const days = w.dates.map(shortLabel).join(", ");
+      return `${w.label} · ${w.count}/${goalsPerWeek}${days ? `\n${days}` : ""}`;
+    };
 
     const streaks = calculateStreaks(workouts);
     const goalProgress = Math.min(100, ((streaks.thisWeekWorkouts || 0) / goalsPerWeek) * 100);
-    const currentWeekNo = Math.max(1, Math.ceil((workoutEntries.length || 0) / goalsPerWeek));
 
-    // Goal-aware day streak: planned rest days do NOT break the streak.
-    // With a goal of g workouts/week you can rest up to (7 - g) days in a
-    // row, so a gap between workout dates of <= (7 - g + 1) days keeps the
-    // streak alive. Example: 5/week Mon-Fri, rest Sat-Sun, train Mon-Wed
-    // next week -> streak = 8 workout days.
+    // Day streak = all workout days inside consecutive goal-met weeks
+    // (Sun–Sat). Example: goal 2 → week with Mon 20 + Fri 24 counts both
+    // days; if next week also met, those days append. Incomplete weeks
+    // (e.g. goal 3 but only 2 sessions) do not contribute.
+    // Fallback: if no goal week is complete yet, use back-to-back calendar days.
     const dayMs = 24 * 60 * 60 * 1000;
     const diffDays = (a, b) =>
       Math.round((new Date(`${b}T12:00`) - new Date(`${a}T12:00`)) / dayMs);
-    const allowedGap = Math.max(1, 7 - goalsPerWeek + 1);
     const dayDates = workoutEntries.map(([d]) => d).sort();
-    let longestDayStreak = 0;
-    let runDays = 0;
-    let prevDate = null;
+    const dayRuns = [];
+    let run = [];
     dayDates.forEach((d) => {
-      runDays = prevDate && diffDays(prevDate, d) <= allowedGap ? runDays + 1 : 1;
-      longestDayStreak = Math.max(longestDayStreak, runDays);
-      prevDate = d;
+      if (run.length && diffDays(run[run.length - 1], d) === 1) {
+        run.push(d);
+      } else {
+        if (run.length) dayRuns.push(run);
+        run = [d];
+      }
     });
-    let currentDayStreak = 0;
-    if (dayDates.length) {
-      const sinceLast = diffDays(dayDates[dayDates.length - 1], todayStr());
-      currentDayStreak = sinceLast <= allowedGap ? runDays : 0;
+    if (run.length) dayRuns.push(run);
+
+    let longestConsecutive = [];
+    dayRuns.forEach((r) => {
+      if (r.length > longestConsecutive.length) longestConsecutive = r;
+    });
+    let currentConsecutive = [];
+    if (dayRuns.length) {
+      const lastRun = dayRuns[dayRuns.length - 1];
+      if (diffDays(lastRun[lastRun.length - 1], todayStr()) <= 1) {
+        currentConsecutive = lastRun;
+      }
     }
+
+    const datesFromWeeks = (weeks) =>
+      weeks.flatMap((w) => w.dates).sort();
+
+    const longestFromWeeks = datesFromWeeks(longestWeekHistory);
+    const currentFromWeeks = datesFromWeeks(currentWeekHistory);
+
+    const longestDayHistory =
+      longestFromWeeks.length > 0 ? longestFromWeeks : longestConsecutive;
+    const longestDayStreak = longestDayHistory.length;
+
+    const currentDayHistory =
+      currentFromWeeks.length > 0 ? currentFromWeeks : currentConsecutive;
+    const currentDayStreak = currentDayHistory.length;
+
+    const thisWeekDates = (thisWeekEntry?.dates || []).map(shortLabel);
 
     return {
       longestDayStreak,
       currentDayStreak,
-      allowedGap,
       sessions: workoutEntries.length,
       todayLogged,
       ...streaks,
@@ -396,14 +478,25 @@ export default function DashboardScreen({
       currentWeekStreak,
       goalsPerWeek,
       activeDaysPerWeek,
-      targetWeeks,
-      currentWeekNo,
+      weekBreakdown,
+      longestWeekHistory,
+      currentWeekHistory,
+      longestDayHistory,
+      currentDayHistory,
+      thisWeekDates,
+      thisWeekLabel: weekRangeLabel(thisWeekStart),
+      shortLabel,
+      formatWeekHistoryLine,
     };
   }, [workouts, settings]);
 
   const handleSaveGoal = async () => {
-    const goal = parseInt(tempGoal, 10) || USER_GOALS_DEFAULT.activitiesPerWeek;
-    if (goal < 1 || goal > 7) {
+    if (tempGoal === "" || tempGoal === "0") {
+      Alert.alert("Invalid Goal", "Enter a number from 1 to 7");
+      return;
+    }
+    const goal = parseInt(tempGoal, 10);
+    if (!goal || goal < 1 || goal > 7) {
       Alert.alert('Invalid Goal', 'Please enter a number between 1 and 7');
       return;
     }
@@ -505,30 +598,58 @@ export default function DashboardScreen({
         {/* Main Stats */}
         <View style={styles.statsGrid}>
           <StatCard label="SESSIONS" value={stats.sessions} icon="calendar-check" color={C.accent} isHero={true} styles={styles} />
-          <StatCard label="LONGEST STREAK WEEK" value={stats.longestWeekStreak} icon="fire" color={C.orange} styles={styles} />
-          <StatCard label="CURRENT STREAK WEEK" value={stats.currentWeekStreak} icon="calendar-sync" color={C.green} styles={styles} />
         </View>
 
-        {/* Day Streaks (goal-aware: planned rest days don't break the streak) */}
-        <View style={styles.streakContainer}>
-          <View style={[styles.streakCard, { borderLeftColor: C.orange }]}>
+        {/* Week + day streaks — same 2×2 card layout; tap for calculation + history */}
+        <View style={styles.streakGrid}>
+          <TouchableOpacity
+            style={[styles.streakCard, { borderLeftColor: C.orange }]}
+            onPress={() => setStreakExplain("longestWeek")}
+            activeOpacity={0.75}
+          >
             <View style={styles.streakHeader}>
               <MaterialCommunityIcons name="fire" size={16} color={C.orange} />
-              <Text style={styles.streakLabel}>LONGEST DAY STREAK</Text>
+              <Text style={styles.streakLabel} numberOfLines={1}>LONGEST WEEK</Text>
+            </View>
+            <Text style={[styles.streakValue, { color: C.orange }]}>{stats.longestWeekStreak}</Text>
+            <Text style={styles.streakSub}>goal weeks in a row · tap</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.streakCard, { borderLeftColor: C.green }]}
+            onPress={() => setStreakExplain("currentWeek")}
+            activeOpacity={0.75}
+          >
+            <View style={styles.streakHeader}>
+              <MaterialCommunityIcons name="calendar-sync" size={16} color={C.green} />
+              <Text style={styles.streakLabel} numberOfLines={1}>CURRENT WEEK</Text>
+            </View>
+            <Text style={[styles.streakValue, { color: C.green }]}>{stats.currentWeekStreak}</Text>
+            <Text style={styles.streakSub}>Sun–Sat goal weeks · tap</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.streakCard, { borderLeftColor: C.orange }]}
+            onPress={() => setStreakExplain("longestDay")}
+            activeOpacity={0.75}
+          >
+            <View style={styles.streakHeader}>
+              <MaterialCommunityIcons name="fire" size={16} color={C.orange} />
+              <Text style={styles.streakLabel} numberOfLines={1}>LONGEST DAY</Text>
             </View>
             <Text style={[styles.streakValue, { color: C.orange }]}>{stats.longestDayStreak}</Text>
-            <Text style={styles.streakSub}>workout days in a row</Text>
-          </View>
-          <View style={[styles.streakCard, { borderLeftColor: C.green }]}>
+            <Text style={styles.streakSub}>days in goal weeks · tap</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.streakCard, { borderLeftColor: C.green }]}
+            onPress={() => setStreakExplain("currentDay")}
+            activeOpacity={0.75}
+          >
             <View style={styles.streakHeader}>
               <MaterialCommunityIcons name="lightning-bolt" size={16} color={C.green} />
-              <Text style={styles.streakLabel}>CURRENT DAY STREAK</Text>
+              <Text style={styles.streakLabel} numberOfLines={1}>CURRENT DAY</Text>
             </View>
             <Text style={[styles.streakValue, { color: C.green }]}>{stats.currentDayStreak}</Text>
-            <Text style={styles.streakSub}>
-              rest ≤ {stats.allowedGap - 1} day{stats.allowedGap - 1 !== 1 ? "s" : ""} keeps it ({stats.goalsPerWeek}/week plan)
-            </Text>
-          </View>
+            <Text style={styles.streakSub}>days in goal weeks · tap</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Today's Status */}
@@ -608,23 +729,17 @@ export default function DashboardScreen({
           </TouchableOpacity>
         </View>
 
-        {/* Streak Info */}
-        <View style={styles.streakContainer}>
-          <View style={[styles.streakCard, { borderLeftColor: C.accent }]}>
-            <View style={styles.streakHeader}>
-              <MaterialCommunityIcons name="check-decagram" size={16} color={C.accent} />
-              <Text style={styles.streakLabel}>COMPLETE DAYS THIS WEEK</Text>
-            </View>
-            <Text style={[styles.streakValue, { color: C.accent }]}>{stats.thisWeekWorkouts}</Text>
-          </View>
-        </View>
+        {/* Streak Info removed — this week count lives in the goal card below */}
 
         {/* Weekly Goal Progress */}
         <View style={styles.goalCard}>
           <View style={styles.goalHeader}>
-            <View>
+            <View style={{ flex: 1, paddingRight: 8 }}>
               <Text style={styles.goalLabel}>Finish {stats.goalsPerWeek} activities / week</Text>
-              <Text style={styles.goalValue}>Week {Math.min(stats.targetWeeks, stats.currentWeekNo)}/{stats.targetWeeks}</Text>
+              <Text style={styles.goalValue}>
+                Completed {stats.thisWeekWorkouts}/{stats.activeDaysPerWeek} this week
+              </Text>
+              <Text style={styles.goalWeekRange}>{stats.thisWeekLabel}</Text>
             </View>
             <TouchableOpacity
               onPress={() => {
@@ -647,7 +762,6 @@ export default function DashboardScreen({
               ]}
             />
           </View>
-          <Text style={styles.progressText}>Completed {stats.thisWeekWorkouts}/{stats.activeDaysPerWeek} this week</Text>
         </View>
 
         {/* Action Buttons */}
@@ -717,10 +831,11 @@ export default function DashboardScreen({
             
             <TextInput
               style={styles.goalInput}
-              placeholder="4"
+              placeholder="0"
+              placeholderTextColor={C.muted}
               keyboardType="number-pad"
               value={tempGoal}
-              onChangeText={setTempGoal}
+              onChangeText={(t) => setTempGoal(t.replace(/[^0-9]/g, "").slice(0, 1))}
               maxLength={1}
             />
 
@@ -740,6 +855,113 @@ export default function DashboardScreen({
             </View>
           </View>
         </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Streak explanation — how it's calculated + your history */}
+      <Modal visible={Boolean(streakExplain)} transparent animationType="fade" onRequestClose={() => setStreakExplain(null)}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, styles.explainModal]}>
+            {(() => {
+              const g = stats.goalsPerWeek;
+              const dayHistoryLines = (weeks, dates) => {
+                if (weeks?.length) {
+                  return [
+                    ...weeks.map(stats.formatWeekHistoryLine),
+                    `Total: ${dates.length} day${dates.length === 1 ? "" : "s"}`,
+                  ];
+                }
+                if (dates?.length) {
+                  return [
+                    `Back-to-back days (no goal week complete yet):\n${dates.map(stats.shortLabel).join(", ")}`,
+                  ];
+                }
+                return ["No workout days in this run yet."];
+              };
+              const configs = {
+                longestWeek: {
+                  title: "LONGEST WEEK STREAK",
+                  value: stats.longestWeekStreak,
+                  rules: [
+                    `A calendar week is Sunday → Saturday.`,
+                    `A week counts only if you logged ≥ ${g} workout days that week.`,
+                    `Missed / under-goal weeks break the streak — empty weeks count as breaks.`,
+                  ],
+                  historyTitle: "Your best run",
+                  history:
+                    stats.longestWeekHistory?.length > 0
+                      ? stats.longestWeekHistory.map(stats.formatWeekHistoryLine)
+                      : ["No week has hit your goal yet — keep logging."],
+                },
+                currentWeek: {
+                  title: "CURRENT WEEK STREAK",
+                  value: stats.currentWeekStreak,
+                  rules: [
+                    `Same rule: Sun–Sat weeks with ≥ ${g} sessions.`,
+                    `Counts consecutive goal weeks. A missed week (0 sessions) resets to 0.`,
+                    `This week (${stats.thisWeekLabel}) is ${stats.thisWeekWorkouts}/${g} so far and does not break an active streak until the week ends under goal.`,
+                  ],
+                  historyTitle: "Active streak weeks",
+                  history:
+                    stats.currentWeekHistory?.length > 0
+                      ? stats.currentWeekHistory.map(stats.formatWeekHistoryLine)
+                      : ["No current week streak — finish a full goal week to start one."],
+                },
+                longestDay: {
+                  title: "LONGEST DAY STREAK",
+                  value: stats.longestDayStreak,
+                  rules: [
+                    `Same Sun–Sat weeks as week streak (goal ≥ ${g}/week).`,
+                    `Each goal-met week adds all of its workout days to the day streak — rest days inside that week are fine.`,
+                    `Consecutive met weeks stack their days. An under-goal or empty week resets the run.`,
+                    `If you have no completed goal week yet, it counts back-to-back calendar days only.`,
+                  ],
+                  historyTitle: "Best day run",
+                  history: dayHistoryLines(stats.longestWeekHistory, stats.longestDayHistory),
+                },
+                currentDay: {
+                  title: "CURRENT DAY STREAK",
+                  value: stats.currentDayStreak,
+                  rules: [
+                    `Same Sun–Sat weeks as week streak (goal ≥ ${g}/week).`,
+                    `Each goal-met week adds all of its workout days to the day streak — rest days inside that week are fine.`,
+                    `Consecutive met weeks stack their days. An under-goal or empty week resets the run.`,
+                    `This week: ${stats.thisWeekWorkouts}/${g} (${stats.thisWeekLabel}).`,
+                  ],
+                  historyTitle: "Current run",
+                  history: dayHistoryLines(stats.currentWeekHistory, stats.currentDayHistory),
+                },
+              };
+              const cfg = configs[streakExplain] || configs.longestWeek;
+              return (
+                <>
+                  <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>{cfg.title}</Text>
+                    <TouchableOpacity onPress={() => setStreakExplain(null)}>
+                      <MaterialCommunityIcons name="close" size={22} color={C.muted} />
+                    </TouchableOpacity>
+                  </View>
+                  <Text style={[styles.streakValue, { color: C.accent, marginBottom: 12 }]}>{cfg.value}</Text>
+                  <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                    <Text style={styles.explainSection}>How it’s calculated</Text>
+                    {cfg.rules.map((r) => (
+                      <Text key={r} style={styles.explainRule}>• {r}</Text>
+                    ))}
+                    <Text style={styles.explainSection}>{cfg.historyTitle}</Text>
+                    {cfg.history.map((line) => (
+                      <Text key={line} style={styles.explainHistory}>{line}</Text>
+                    ))}
+                  </ScrollView>
+                  <TouchableOpacity
+                    style={[styles.button, styles.primaryButton, { marginBottom: 0, marginTop: 14 }]}
+                    onPress={() => setStreakExplain(null)}
+                  >
+                    <Text style={styles.primaryButtonText}>GOT IT</Text>
+                  </TouchableOpacity>
+                </>
+              );
+            })()}
+          </View>
+        </View>
       </Modal>
 
       {/* Profile Modal */}
@@ -1270,9 +1492,18 @@ const createStyles = (C) => StyleSheet.create({
   },
   statusLabel: { fontSize: 10, color: C.muted, fontWeight: "700", letterSpacing: 1 },
   statusValue: { marginTop: 4, fontSize: 14, fontWeight: "700" },
+  streakGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginBottom: 14,
+  },
   streakContainer: { flexDirection: "row", gap: 10, marginBottom: 14 },
   streakCard: {
-    flex: 1,
+    width: "48%",
+    flexGrow: 1,
+    flexBasis: "47%",
+    minHeight: 96,
     backgroundColor: C.card,
     borderWidth: 1,
     borderColor: C.border,
@@ -1281,9 +1512,40 @@ const createStyles = (C) => StyleSheet.create({
     borderLeftWidth: 3,
   },
   streakHeader: { flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 8 },
-  streakLabel: { fontSize: 10, color: C.muted, fontWeight: "700", letterSpacing: 0.8 },
+  streakLabel: { flex: 1, fontSize: 10, color: C.muted, fontWeight: "700", letterSpacing: 0.8 },
   streakValue: { fontSize: 20, fontWeight: "900" },
   streakSub: { fontSize: 9, color: C.muted, fontWeight: "600", marginTop: 4 },
+  explainModal: {
+    width: "90%",
+    maxWidth: 400,
+    maxHeight: "80%",
+  },
+  explainSection: {
+    fontSize: 11,
+    color: C.accent,
+    fontWeight: "800",
+    letterSpacing: 0.6,
+    marginTop: 14,
+    marginBottom: 6,
+  },
+  explainRule: {
+    fontSize: 12,
+    color: C.text,
+    lineHeight: 18,
+    marginBottom: 4,
+  },
+  explainHistory: {
+    fontSize: 12,
+    color: C.muted,
+    lineHeight: 18,
+    marginBottom: 3,
+  },
+  goalWeekRange: {
+    fontSize: 11,
+    color: C.muted,
+    fontWeight: "600",
+    marginTop: 4,
+  },
   removePhotoBtn: {
     flexDirection: "row",
     alignItems: "center",
@@ -1320,7 +1582,7 @@ const createStyles = (C) => StyleSheet.create({
     marginBottom: 6,
   },
   progressFill: { height: "100%", borderRadius: 4 },
-  progressText: { fontSize: 12, color: C.muted, fontWeight: "600", textAlign: "right" },
+  progressText: { fontSize: 12, color: C.muted, fontWeight: "600", textAlign: "left" },
   liftCard: {
     flexDirection: "row",
     alignItems: "center",
