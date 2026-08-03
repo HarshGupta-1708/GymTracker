@@ -1,0 +1,54 @@
+// Shared profiles + Gmail verify/claim — paste into Firebase Firestore Rules:
+// (Email sending uses coach-api Nodemailer — no Trigger Email extension / Blaze needed.)
+
+match /users/{userId}/athletes/{athleteId}/{document=**} {
+  allow read, write: if request.auth != null && request.auth.uid == userId;
+
+  allow read: if request.auth != null
+    && request.auth.token.email != null
+    && exists(/databases/$(database)/documents/profileLinks/$(request.auth.token.email.lower()))
+    && get(/databases/$(database)/documents/profileLinks/$(request.auth.token.email.lower())).data.hostUid == userId
+    && get(/databases/$(database)/documents/profileLinks/$(request.auth.token.email.lower())).data.profileId == athleteId
+    && get(/databases/$(database)/documents/profileLinks/$(request.auth.token.email.lower())).data.verified == true;
+}
+
+match /users/{userId}/settings/athletes {
+  allow read, write: if request.auth != null && request.auth.uid == userId;
+}
+
+match /users/{userId}/settings/memberships {
+  allow read, write: if request.auth != null && request.auth.uid == userId;
+}
+
+match /users/{userId}/settings/devices {
+  allow read, write: if request.auth != null && request.auth.uid == userId;
+}
+
+// Lets hosts detect if an email already has a FitTrack login
+match /emailIndex/{emailKey} {
+  allow read: if request.auth != null;
+  allow create, update: if request.auth != null
+    && request.auth.token.email != null
+    && request.auth.token.email.lower() == emailKey
+    && request.resource.data.uid == request.auth.uid;
+  allow delete: if false;
+}
+
+match /profileLinks/{emailKey} {
+  allow create: if request.auth != null
+    && request.resource.data.hostUid == request.auth.uid;
+
+  allow update: if request.auth != null && (
+    resource.data.hostUid == request.auth.uid
+    || (
+      request.auth.token.email != null
+      && request.auth.token.email.lower() == emailKey
+      && request.resource.data.token == resource.data.token
+    )
+  );
+
+  allow read, delete: if request.auth != null
+    && (resource.data.hostUid == request.auth.uid
+      || (request.auth.token.email != null
+        && request.auth.token.email.lower() == emailKey));
+}

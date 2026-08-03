@@ -41,7 +41,16 @@
     },
     "web": {
       "output": "single",
-      "favicon": "./assets/images/favicon.png"
+      "favicon": "./assets/images/favicon.png",
+      "name": "FitTrack",
+      "shortName": "FitTrack",
+      "description": "Premium workout logger — track sets, streaks, and progress.",
+      "themeColor": "#080810",
+      "backgroundColor": "#080810",
+      "display": "standalone",
+      "lang": "en",
+      "orientation": "portrait",
+      "startUrl": "/"
     },
     "plugins": [
       "expo-font",

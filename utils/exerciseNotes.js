@@ -1,14 +1,15 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { auth, db } from "../config/firebaseConfig";
+import { scopeStorageKey, scopedUserSegments } from "./profileScope";
 
 const getEffectiveUid = () =>
   auth.currentUser?.uid || (auth.isDemo ? "demo-user" : null);
 
-const getNotesKey = () => {
-  const uid = getEffectiveUid() || "guest";
-  return `gt_exercise_notes_${uid}`;
-};
+const getNotesKey = () =>
+  scopeStorageKey("gt_exercise_notes", getEffectiveUid() || "guest");
+
+const notesDoc = (uid) => doc(db, ...scopedUserSegments(uid), "settings", "exerciseNotes");
 
 const normalizeNotes = (raw) => {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
@@ -38,9 +39,8 @@ export const saveExerciseNotes = async (notes) => {
   try {
     await AsyncStorage.setItem(getNotesKey(), JSON.stringify(normalized));
     if (uid && !auth.isDemo) {
-      const ref = doc(db, "users", uid, "settings", "exerciseNotes");
       await setDoc(
-        ref,
+        notesDoc(uid),
         { notes: normalized, updatedAt: new Date().toISOString() },
         { merge: true },
       );
@@ -71,7 +71,7 @@ export const listenExerciseNotes = (callback) => {
   if (!uid || auth.isDemo) return unsub;
 
   try {
-    const ref = doc(db, "users", uid, "settings", "exerciseNotes");
+    const ref = notesDoc(uid);
     unsub = onSnapshot(
       ref,
       async (snap) => {

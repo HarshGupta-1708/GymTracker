@@ -7,10 +7,16 @@ import * as Sharing from "expo-sharing";
 import { USER_GOALS_DEFAULT, todayStr, prettyDate, timeStr } from "../constants/data";
 import { calculateStreaks, listenUserSettings, saveUserSettings, listenBodyPhotos, saveBodyPhotoEntry, deleteBodyPhotoEntry, getWorkouts } from "../utils/firestore";
 import { exportUserData, importUserData } from "../utils/backup";
+import {
+  getDefaultProfileId,
+  syncAccountOwnerMeta,
+  updateAthleteProfile,
+} from "../utils/athletes";
+import { getActiveProfileId, SELF_PROFILE, setActiveProfileId } from "../utils/profileScope";
 import { useTheme } from "../context/ThemeContext";
-import ThemePickerModal from "../components/ThemePickerModal";
 import PhotoCropModal from "../components/PhotoCropModal";
 import { getThemeById } from "../constants/themes";
+import SettingsModal from "./SettingsModal";
 
 // BMI = kg / m² (metric) or 703 × lbs / in² (imperial) — WHO standard.
 const computeBmi = (weight, height, units) => {
@@ -73,6 +79,7 @@ export default function DashboardScreen({
   showRestoreHint,
   onDismissRestoreHint,
   onWorkoutsChange,
+  onProfileSwitched,
 }) {
   const { colors: C } = useTheme();
   const styles = useMemo(() => createStyles(C), [C]);
@@ -86,7 +93,7 @@ export default function DashboardScreen({
   const [tempGoal, setTempGoal] = useState('4');
   const [streakExplain, setStreakExplain] = useState(null); // longestWeek | currentWeek | longestDay | currentDay
   const [showProfileModal, setShowProfileModal] = useState(false);
-  const [showThemeModal, setShowThemeModal] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const [profileData, setProfileData] = useState({
     displayName: "",
     age: "",
@@ -214,6 +221,24 @@ export default function DashboardScreen({
     // Firestore listener to push the saved settings back to this screen.
     setSettings(updatedSettings);
     await saveUserSettings(updatedSettings);
+
+    // Sync name/photo into Profiles switcher (owner meta or athlete registry)
+    const activePid = getActiveProfileId();
+    try {
+      if (activePid === SELF_PROFILE) {
+        await syncAccountOwnerMeta({
+          name: updatedSettings.displayName,
+          photo: updatedSettings.profilePhoto,
+        });
+      } else {
+        await updateAthleteProfile(activePid, {
+          name: updatedSettings.displayName,
+          photo: updatedSettings.profilePhoto,
+        });
+      }
+    } catch (e) {
+      console.warn("[Dashboard] profile list sync failed", e);
+    }
 
     setShowProfileModal(false);
     Alert.alert(
@@ -514,7 +539,11 @@ export default function DashboardScreen({
     try {
       setBackupBusy(true);
       const result = await exportUserData();
-      Alert.alert("Backup Exported", `Saved as ${result.fileName}`);
+      const scopeNote =
+        result.scope === "account"
+          ? " (full account + all profiles)"
+          : " (this profile only)";
+      Alert.alert("Backup Exported", `Saved as ${result.fileName}${scopeNote}`);
     } catch (err) {
       Alert.alert("Export Failed", err.message || "Could not export backup");
     } finally {
@@ -523,9 +552,14 @@ export default function DashboardScreen({
   };
 
   const handleImport = async () => {
+    const active = getActiveProfileId();
+    const primary = await getDefaultProfileId();
+    const onPrimary = active === primary;
     Alert.alert(
       "Import Backup",
-      "This will merge workouts from your backup file. Continue?",
+      onPrimary
+        ? "On primary: a full-account backup will restore all profiles. A single-profile backup merges into the current profile. Continue?"
+        : "Not on primary: only this profile’s data will be restored from the backup. Continue?",
       [
         { text: "Cancel", style: "cancel" },
         {
@@ -537,9 +571,14 @@ export default function DashboardScreen({
               if (result.cancelled) return;
               const fresh = await getWorkouts();
               if (typeof onWorkoutsChange === "function") onWorkoutsChange(fresh);
+              if (typeof onProfileSwitched === "function") {
+                await onProfileSwitched(getActiveProfileId());
+              }
               Alert.alert(
                 "Import Complete",
-                `Restored ${result.workoutCount} workout days${result.exerciseCount ? ` and ${result.exerciseCount} exercises` : ""}.`,
+                result.scope === "account"
+                  ? `Restored ${result.profileCount || 0} profiles (${result.workoutCount} workout days).`
+                  : `Restored ${result.workoutCount} workout days${result.exerciseCount ? ` and ${result.exerciseCount} exercises` : ""} for this profile.`,
               );
             } catch (err) {
               Alert.alert("Import Failed", err.message || "Invalid backup file");
@@ -552,13 +591,28 @@ export default function DashboardScreen({
     );
   };
 
+  const handleSmartSignOut = async () => {
+    const active = getActiveProfileId();
+    const primary = await getDefaultProfileId();
+    if (active !== primary) {
+      setActiveProfileId(primary);
+      setShowSettings(false);
+      if (typeof onProfileSwitched === "function") {
+        await onProfileSwitched(primary);
+      }
+      Alert.alert("Back to primary", "You’re using your primary profile again.");
+      return;
+    }
+    setShowSettings(false);
+    if (typeof onSignOut === "function") onSignOut();
+  };
+
   const activeThemeId = themeId || settings.themeId || "midnightIron";
   const currentTheme = useMemo(() => getThemeById(activeThemeId), [activeThemeId]);
 
   const handleThemeSelect = async (id) => {
     onThemeChange?.(id);
     await saveUserSettings({ ...settings, themeId: id });
-    setShowThemeModal(false);
   };
 
   return (
@@ -729,8 +783,6 @@ export default function DashboardScreen({
           </TouchableOpacity>
         </View>
 
-        {/* Streak Info removed — this week count lives in the goal card below */}
-
         {/* Weekly Goal Progress */}
         <View style={styles.goalCard}>
           <View style={styles.goalHeader}>
@@ -772,43 +824,31 @@ export default function DashboardScreen({
 
         <TouchableOpacity
           style={[styles.button, styles.secondaryButton]}
-          onPress={() => setShowThemeModal(true)}
+          onPress={() => setShowSettings(true)}
         >
-          <MaterialCommunityIcons name="palette" size={18} color={C.accent} />
-          <Text style={styles.secondaryButtonText}>
-            Gym Theme · {currentTheme.emoji} {currentTheme.name}
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.button, styles.secondaryButton, backupBusy && { opacity: 0.6 }]}
-          onPress={handleExport}
-          disabled={backupBusy}
-        >
-          <MaterialCommunityIcons name="export" size={18} color={C.accent} />
-          <Text style={styles.secondaryButtonText}>Export Backup</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.button, styles.secondaryButton, backupBusy && { opacity: 0.6 }]}
-          onPress={handleImport}
-          disabled={backupBusy}
-        >
-          <MaterialCommunityIcons name="import" size={18} color={C.accent} />
-          <Text style={styles.secondaryButtonText}>Import Backup</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity style={[styles.button, styles.dangerButton]} onPress={onSignOut}>
-          <MaterialCommunityIcons name="logout" size={18} color={C.error} />
-          <Text style={[styles.secondaryButtonText, { color: C.error }]}>Sign Out</Text>
+          <MaterialCommunityIcons name="cog" size={18} color={C.accent} />
+          <Text style={styles.secondaryButtonText}>Settings</Text>
         </TouchableOpacity>
       </ScrollView>
 
-      <ThemePickerModal
-        visible={showThemeModal}
-        currentThemeId={activeThemeId}
-        onSelect={handleThemeSelect}
-        onClose={() => setShowThemeModal(false)}
+      <SettingsModal
+        visible={showSettings}
+        onClose={() => setShowSettings(false)}
+        user={user}
+        workouts={workouts}
+        settings={settings}
+        themeId={activeThemeId}
+        currentTheme={currentTheme}
+        onThemeSelect={handleThemeSelect}
+        onExport={handleExport}
+        onImport={handleImport}
+        backupBusy={backupBusy}
+        onSignOut={handleSmartSignOut}
+        onProfileSwitched={async (profileId) => {
+          if (typeof onProfileSwitched === "function") {
+            await onProfileSwitched(profileId);
+          }
+        }}
       />
 
       <PhotoCropModal

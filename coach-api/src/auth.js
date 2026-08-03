@@ -1,7 +1,7 @@
-let adminApp = null;
+let adminModule = null;
 
-function getAdminAuth() {
-  if (adminApp) return adminApp;
+function getFirebaseAdmin() {
+  if (adminModule) return adminModule;
 
   const json = process.env.FIREBASE_SERVICE_ACCOUNT_JSON;
   if (!json) return null;
@@ -14,12 +14,17 @@ function getAdminAuth() {
         credential: admin.credential.cert(serviceAccount),
       });
     }
-    adminApp = admin.auth();
-    return adminApp;
+    adminModule = admin;
+    return adminModule;
   } catch (err) {
     console.error("Firebase Admin init failed:", err.message);
     return null;
   }
+}
+
+function getAdminAuth() {
+  const admin = getFirebaseAdmin();
+  return admin ? admin.auth() : null;
 }
 
 async function verifyRequestAuth(req) {
@@ -39,17 +44,17 @@ async function verifyRequestAuth(req) {
 
     try {
       const decoded = await auth.verifyIdToken(token);
-      return { ok: true, uid: decoded.uid };
+      return { ok: true, uid: decoded.uid, email: decoded.email || null };
     } catch {
       return { ok: false, error: "Invalid Firebase token" };
     }
   }
 
   if (demoHeader === "demo-user" && process.env.ALLOW_DEMO_COACH === "true") {
-    return { ok: true, uid: "demo-user" };
+    return { ok: true, uid: "demo-user", email: null };
   }
 
   return { ok: false, error: "Missing Authorization Bearer token" };
 }
 
-module.exports = { verifyRequestAuth };
+module.exports = { verifyRequestAuth, getAdminAuth, getFirebaseAdmin };

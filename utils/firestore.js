@@ -8,29 +8,28 @@ import {
     setDoc
 } from "firebase/firestore";
 import { auth, db } from "../config/firebaseConfig";
+import { scopeStorageKey, scopedUserSegments } from "./profileScope";
 
 const getEffectiveUid = () =>
   auth.currentUser?.uid || (auth.isDemo ? "demo-user" : null);
 
-// Dynamic storage keys namespaced by user UID to prevent data leaking between Gmail & Guest accounts
-const getWorkoutsKey = () => {
-  const uid = auth.currentUser?.uid || (auth.isDemo ? "demo-user" : "guest");
-  return `gt_workouts_local_${uid}`;
-};
+const storageUid = () =>
+  auth.currentUser?.uid || (auth.isDemo ? "demo-user" : "guest");
 
-const getExercisesKey = () => {
-  const uid = auth.currentUser?.uid || (auth.isDemo ? "demo-user" : "guest");
-  return `gt_exercises_local_${uid}`;
-};
+// Dynamic storage keys namespaced by user UID (+ active athlete profile)
+const getWorkoutsKey = () => scopeStorageKey("gt_workouts_local", storageUid());
+const getExercisesKey = () => scopeStorageKey("gt_exercises_local", storageUid());
+const getSyncStatusKey = () => scopeStorageKey("gt_sync_status", storageUid());
+const getSettingsKey = () => scopeStorageKey("gt_user_settings", storageUid());
+const getBodyPhotosKey = () => scopeStorageKey("gt_body_photos_local", storageUid());
 
-const getSyncStatusKey = () => {
-  const uid = auth.currentUser?.uid || (auth.isDemo ? "demo-user" : "guest");
-  return `gt_sync_status_${uid}`;
+const scopedDoc = (...parts) => {
+  const uid = getEffectiveUid();
+  return doc(db, ...scopedUserSegments(uid), ...parts);
 };
-
-const getSettingsKey = () => {
-  const uid = auth.currentUser?.uid || (auth.isDemo ? "demo-user" : "guest");
-  return `gt_user_settings_${uid}`;
+const scopedCol = (...parts) => {
+  const uid = getEffectiveUid();
+  return collection(db, ...scopedUserSegments(uid), ...parts);
 };
 
 // ===== UTILITY FUNCTIONS =====
@@ -144,7 +143,7 @@ export const saveWorkout = async (date, workoutData) => {
       return true;
     }
 
-    const ref = doc(db, "users", uid, "workouts", date);
+    const ref = scopedDoc("workouts", date);
     await setDoc(ref, workoutData, { merge: true });
     return true;
   } catch (err) {
@@ -189,7 +188,7 @@ export const getWorkouts = async () => {
       return await loadWorkoutLocal();
     }
 
-    const ref = collection(db, "users", uid, "workouts");
+    const ref = scopedCol("workouts");
     const snapshot = await getDocs(ref);
     const data = {};
     snapshot.forEach((doc) => {
@@ -214,7 +213,7 @@ export const listenWorkouts = (callback) => {
       return () => {};
     }
 
-    const ref = collection(db, "users", uid, "workouts");
+    const ref = scopedCol("workouts");
     return onSnapshot(
       ref,
       (snapshot) => {
@@ -247,7 +246,7 @@ export const deleteWorkout = async (date) => {
     if (!uid) {
       console.warn("Delete workout: no auth — removing locally only");
     } else if (!auth.isDemo) {
-      await deleteDoc(doc(db, "users", uid, "workouts", date));
+      await deleteDoc(scopedDoc("workouts", date));
     }
 
     const allWorkouts = JSON.parse(
@@ -282,7 +281,7 @@ export const saveExercisesLib = async (exercises) => {
       return true;
     }
 
-    const ref = doc(db, "users", uid, "exercises", "library");
+    const ref = scopedDoc("exercises", "library");
     await setDoc(ref, { items: exercises }, { merge: true });
     return true;
   } catch (err) {
@@ -303,7 +302,7 @@ export const getExercisesLib = async () => {
       return local ? JSON.parse(local) : null;
     }
 
-    const ref = doc(db, "users", uid, "exercises", "library");
+    const ref = scopedDoc("exercises", "library");
     const snapshot = await getDocs(collection(ref.parent, ref.id));
 
     if (snapshot.empty) return null;
@@ -339,7 +338,7 @@ export const listenExercises = (callback) => {
       return () => {};
     }
 
-    const ref = doc(db, "users", uid, "exercises", "library");
+    const ref = scopedDoc("exercises", "library");
     return onSnapshot(
       ref,
       (snapshot) => {
@@ -422,7 +421,7 @@ export const saveUserSettings = async (settings) => {
       return true;
     }
 
-    const ref = doc(db, "users", uid, "settings", "preferences");
+    const ref = scopedDoc("settings", "preferences");
     await setDoc(ref, cloudSettings, { merge: true });
 
     // Save locally in decrypted form for fast rendering
@@ -445,8 +444,8 @@ export const loadUserSettings = async () => {
       return local ? JSON.parse(local) : { goalsPerWeek: 4, theme: "dark" };
     }
 
-    const ref = doc(db, "users", uid, "settings", "preferences");
-    const snapshot = await getDocs(collection(db, "users", uid, "settings"));
+    const ref = scopedDoc("settings", "preferences");
+    const snapshot = await getDocs(scopedCol("settings"));
 
     if (snapshot.size > 0) {
       const doc = snapshot.docs.find((d) => d.id === "preferences");
@@ -495,7 +494,7 @@ export const listenUserSettings = (callback) => {
       return () => {};
     }
 
-    const ref = doc(db, "users", uid, "settings", "preferences");
+    const ref = scopedDoc("settings", "preferences");
     return onSnapshot(
       ref,
       (snapshot) => {
@@ -538,18 +537,18 @@ export const saveBodyPhotoEntry = async (photoEntry) => {
     }
 
     if (auth.isDemo) {
-      const key = `gt_body_photos_local_demo-user`;
+      const key = getBodyPhotosKey();
       const current = JSON.parse((await AsyncStorage.getItem(key)) || "[]");
       current.push(photoEntry);
       await AsyncStorage.setItem(key, JSON.stringify(current));
       return true;
     }
 
-    const ref = doc(db, "users", uid, "bodyPhotos", photoEntry.id);
+    const ref = scopedDoc("bodyPhotos", photoEntry.id);
     await setDoc(ref, cloudEntry);
 
     // Save locally
-    const key = `gt_body_photos_local_${uid}`;
+    const key = getBodyPhotosKey();
     const current = JSON.parse((await AsyncStorage.getItem(key)) || "[]");
     current.push(photoEntry);
     await AsyncStorage.setItem(key, JSON.stringify(current));
@@ -568,7 +567,7 @@ export const listenBodyPhotos = (callback) => {
       return () => {};
     }
 
-    const key = `gt_body_photos_local_${uid}`;
+    const key = getBodyPhotosKey();
     AsyncStorage.getItem(key).then((local) => {
       if (local) {
         callback(JSON.parse(local));
@@ -579,7 +578,7 @@ export const listenBodyPhotos = (callback) => {
       return () => {};
     }
 
-    const ref = collection(db, "users", uid, "bodyPhotos");
+    const ref = scopedCol("bodyPhotos");
     return onSnapshot(
       ref,
       (snapshot) => {
@@ -612,7 +611,7 @@ export const deleteBodyPhotoEntry = async (entryId) => {
     if (!uid) throw new Error("Not authenticated");
 
     if (auth.isDemo) {
-      const key = `gt_body_photos_local_demo-user`;
+      const key = getBodyPhotosKey();
       const current = JSON.parse((await AsyncStorage.getItem(key)) || "[]");
       const updated = current.filter(item => item.id !== entryId);
       await AsyncStorage.setItem(key, JSON.stringify(updated));
@@ -620,10 +619,10 @@ export const deleteBodyPhotoEntry = async (entryId) => {
     }
 
     // Delete from Firestore
-    await deleteDoc(doc(db, "users", uid, "bodyPhotos", entryId));
+    await deleteDoc(scopedDoc("bodyPhotos", entryId));
 
     // Delete from local storage
-    const key = `gt_body_photos_local_${uid}`;
+    const key = getBodyPhotosKey();
     const current = JSON.parse((await AsyncStorage.getItem(key)) || "[]");
     const updated = current.filter(item => item.id !== entryId);
     await AsyncStorage.setItem(key, JSON.stringify(updated));

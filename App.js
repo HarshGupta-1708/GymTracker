@@ -16,10 +16,20 @@ import {
 } from "react-native";
 import "react-native-get-random-values";
 import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import AppLockGate from "./components/AppLockGate";
 import AppSplash from "./components/AppSplash";
 import OnboardingTour from "./components/OnboardingTour";
 import WhatsNewModal from "./components/WhatsNewModal";
 import { auth } from "./config/firebaseConfig";
+import {
+  claimPendingProfileLink,
+  getDefaultProfileId,
+  parseVerifyQuery,
+  verifyProfileInvite,
+} from "./utils/athletes";
+import { syncEmailIndex } from "./utils/emailIndex";
+import { SELF_PROFILE, setActiveProfileId } from "./utils/profileScope";
+import { setupPwaWeb } from "./utils/setupPwaWeb";
 import { COLORS, PRESET_EXERCISES, todayStr } from "./constants/data";
 import { DEFAULT_THEME_ID, getThemeById } from "./constants/themes";
 import { ThemeProvider, useTheme } from "./context/ThemeContext";
@@ -173,6 +183,28 @@ export default function App() {
   const [themeId, setThemeId] = useState(DEFAULT_THEME_ID);
 
   useEffect(() => {
+    setupPwaWeb();
+    // Stash Gmail verify link — must sign in with that Google account to complete verify.
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      const parsed = parseVerifyQuery(window.location.search || "");
+      if (parsed) {
+        try {
+          sessionStorage.setItem("gt_pending_verify", JSON.stringify(parsed));
+          const url = new URL(window.location.href);
+          url.search = "";
+          window.history.replaceState({}, "", url.pathname);
+        } catch {
+          /* ignore */
+        }
+        Alert.alert(
+          "Verify your email",
+          `Sign in with Google as ${parsed.email} to confirm this FitTrack profile invite.`,
+        );
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     AsyncStorage.getItem(THEME_CACHE_KEY).then((id) => {
       if (id && getThemeById(id).id === id) setThemeId(id);
     });
@@ -244,7 +276,60 @@ export default function App() {
 
       if (cancelled) return;
 
-      unsub = onAuthStateChanged(auth, (currentUser) => {
+      unsub = onAuthStateChanged(auth, async (currentUser) => {
+        if (cancelled) return;
+        if (currentUser && !auth.isDemo) {
+          try {
+            // Index email so "Add Gmail" can detect existing FitTrack logins
+            await syncEmailIndex(currentUser);
+
+            // Complete email verify from invite link (same Google email required)
+            if (Platform.OS === "web" && typeof sessionStorage !== "undefined") {
+              const raw = sessionStorage.getItem("gt_pending_verify");
+              if (raw) {
+                const pending = JSON.parse(raw);
+                const loginEmail = String(currentUser.email || "").toLowerCase();
+                if (pending?.email && loginEmail === String(pending.email).toLowerCase()) {
+                  try {
+                    const r = await verifyProfileInvite(pending);
+                    sessionStorage.removeItem("gt_pending_verify");
+                    Alert.alert(
+                      "Email verified",
+                      `${r.name || "Profile"} is verified. Syncing your data…`,
+                    );
+                  } catch (ve) {
+                    Alert.alert("Verification failed", ve.message || "Invalid link");
+                  }
+                } else if (pending?.email) {
+                  Alert.alert(
+                    "Wrong Google account",
+                    `Sign in as ${pending.email} to verify this invite (you are ${loginEmail || "signed in"}).`,
+                  );
+                }
+              }
+            }
+
+            const claimed = await claimPendingProfileLink(currentUser);
+            if (claimed?.needsVerify) {
+              Alert.alert(
+                "Verify email first",
+                `Open the verification link for ${claimed.email}, then sign in with that Google account.`,
+              );
+            } else if (claimed?.claimed && claimed?.name) {
+              Alert.alert(
+                "Profile ready",
+                `"${claimed.name}" was moved into your Google account and will sync on all your devices.`,
+              );
+            }
+            const def = await getDefaultProfileId();
+            setActiveProfileId(def || SELF_PROFILE);
+          } catch (e) {
+            console.warn("[GymTracker Auth] profile claim/default failed", e);
+            setActiveProfileId(SELF_PROFILE);
+          }
+        } else if (!currentUser) {
+          setActiveProfileId(SELF_PROFILE);
+        }
         if (cancelled) return;
         setUser(currentUser);
         setLoading(false);
@@ -280,8 +365,33 @@ export default function App() {
     }
   }, [user]);
 
+  const [profileTick, setProfileTick] = useState(0);
+
+  const handleProfileSwitched = useCallback(async () => {
+    setWorkoutsLoading(true);
+    setSplashMessage("Switching athlete profile...");
+    try {
+      if (auth.isDemo) {
+        const local = await loadWorkoutLocal();
+        setWorkouts(local || {});
+      } else {
+        const cloud = await getWorkouts();
+        setWorkouts(cloud || {});
+      }
+    } catch (err) {
+      console.error("Profile switch load error:", err);
+      setWorkouts({});
+    } finally {
+      setWorkoutsLoading(false);
+      setProfileTick((n) => n + 1);
+    }
+  }, []);
+
   useEffect(() => {
-    if (!user) return undefined;
+    if (!user) {
+      setActiveProfileId(SELF_PROFILE);
+      return undefined;
+    }
 
     if (auth.isDemo) return undefined;
 
@@ -325,7 +435,7 @@ export default function App() {
       cancelled = true;
       unsubscribe();
     };
-  }, [user]);
+  }, [user, profileTick]);
 
   useEffect(() => {
     if (user && !auth.isDemo) {
@@ -347,7 +457,7 @@ export default function App() {
         .catch(() => setExercises(PRESET_EXERCISES));
     }
     return undefined;
-  }, [user]);
+  }, [user, profileTick]);
 
   useEffect(() => {
     if (!user || workoutsLoading) return;
@@ -519,6 +629,7 @@ export default function App() {
           onDismissRestoreHint={() => setShowRestoreHint(false)}
           onWhatsNewDismiss={handleWhatsNewDismiss}
           onWorkoutsChange={handleWorkoutsChange}
+          onProfileSwitched={handleProfileSwitched}
           addCustomExercise={addCustomExercise}
           updateExerciseWithHistory={updateExerciseWithHistory}
           removeExerciseWithHistory={removeExerciseWithHistory}
@@ -547,6 +658,7 @@ function MainApp({
   onDismissRestoreHint,
   onWhatsNewDismiss,
   onWorkoutsChange,
+  onProfileSwitched,
   addCustomExercise,
   updateExerciseWithHistory,
   removeExerciseWithHistory,
@@ -619,6 +731,7 @@ function MainApp({
               />
             </SafeAreaView>
           ) : (
+            <AppLockGate>
             <Tab.Navigator
               initialRouteName="Dashboard"
               screenOptions={tabScreenOptions}
@@ -639,7 +752,9 @@ function MainApp({
                       showRestoreHint={showRestoreHint}
                       onDismissRestoreHint={onDismissRestoreHint}
                       onWorkoutsChange={onWorkoutsChange}
+                      onProfileSwitched={onProfileSwitched}
                       onSignOut={async () => {
+                        setActiveProfileId(SELF_PROFILE);
                         if (auth.isDemo) {
                           auth.isDemo = false;
                           await AsyncStorage.removeItem("gt_demo_session");
@@ -801,6 +916,7 @@ function MainApp({
                 }}
               />
             </Tab.Navigator>
+            </AppLockGate>
           )}
         </NavigationContainer>
     </ErrorBoundary>

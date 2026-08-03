@@ -1,10 +1,11 @@
 require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
-const { verifyRequestAuth } = require("./src/auth");
+const { verifyRequestAuth, getAdminAuth, getFirebaseAdmin } = require("./src/auth");
 const { buildSystemPrompt, buildUserPrompt } = require("./src/prompts");
 const { callGroq } = require("./src/groq");
 const { checkRateLimit, getUsageStats } = require("./src/rateLimit");
+const { sendProfileVerifyEmail, isMailConfigured } = require("./src/mail");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -19,9 +20,113 @@ app.get("/health", (_req, res) => {
     service: "gymtracker-coach-api",
     groqConfigured: Boolean(process.env.GROQ_API_KEY),
     firebaseConfigured: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON),
+    mailConfigured: isMailConfigured(),
     model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
     dailyLimit: DAILY_LIMIT,
   });
+});
+
+/**
+ * Check whether a Gmail already has a Firebase login and/or a FitTrack invite.
+ * Used before linking a shared profile email.
+ */
+app.post("/check-email", async (req, res) => {
+  try {
+    const authResult = await verifyRequestAuth(req);
+    if (!authResult.ok) {
+      return res.status(401).json({ error: authResult.error });
+    }
+
+    const email = String(req.body?.email || "")
+      .trim()
+      .toLowerCase();
+    if (!email || !email.includes("@")) {
+      return res.status(400).json({ error: "Valid email is required" });
+    }
+
+    let authExists = false;
+    let displayName = null;
+    const authAdmin = getAdminAuth();
+    if (authAdmin) {
+      try {
+        const user = await authAdmin.getUserByEmail(email);
+        authExists = Boolean(user?.uid);
+        displayName = user?.displayName || null;
+      } catch (e) {
+        if (e?.code !== "auth/user-not-found") {
+          console.warn("check-email auth lookup:", e.message);
+        }
+      }
+    }
+
+    let invite = null;
+    const admin = getFirebaseAdmin();
+    if (admin) {
+      try {
+        const snap = await admin.firestore().collection("profileLinks").doc(email).get();
+        if (snap.exists) {
+          const d = snap.data() || {};
+          invite = {
+            hostUid: d.hostUid || null,
+            profileId: d.profileId || null,
+            name: d.name || null,
+            verified: Boolean(d.verified),
+            isOwnInvite: d.hostUid === authResult.uid,
+          };
+        }
+      } catch (e) {
+        console.warn("check-email invite lookup:", e.message);
+      }
+    }
+
+    res.json({
+      ok: true,
+      email,
+      authExists,
+      displayName,
+      invite,
+    });
+  } catch (err) {
+    console.error("check-email error:", err);
+    res.status(500).json({ error: err.message || "Lookup failed" });
+  }
+});
+
+/** Profile invite verify email — Nodemailer + Gmail App Password (Spark-friendly). */
+app.post("/send-verify-email", async (req, res) => {
+  try {
+    const authResult = await verifyRequestAuth(req);
+    if (!authResult.ok) {
+      return res.status(401).json({ error: authResult.error });
+    }
+
+    const { to, name, verifyUrl, hostName } = req.body || {};
+    const email = String(to || "").trim().toLowerCase();
+    if (!email || !email.includes("@")) {
+      return res.status(400).json({ error: "Valid to email is required" });
+    }
+    if (!verifyUrl || typeof verifyUrl !== "string") {
+      return res.status(400).json({ error: "verifyUrl is required" });
+    }
+    if (!/^https?:\/\//i.test(verifyUrl)) {
+      return res.status(400).json({ error: "verifyUrl must be http(s)" });
+    }
+
+    await sendProfileVerifyEmail({
+      to: email,
+      name: String(name || "there").slice(0, 80),
+      verifyUrl: String(verifyUrl).slice(0, 2000),
+      hostName: String(hostName || "FitTrack user").slice(0, 80),
+    });
+
+    res.json({ ok: true, sent: true });
+  } catch (err) {
+    console.error("send-verify-email error:", err);
+    const status = err.code === "MAIL_NOT_CONFIGURED" ? 503 : 500;
+    res.status(status).json({
+      error: err.message || "Failed to send email",
+    });
+  }
 });
 
 app.post("/ask", async (req, res) => {

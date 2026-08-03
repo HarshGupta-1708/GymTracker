@@ -2,14 +2,15 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { auth, db } from "../config/firebaseConfig";
 import { WORKOUT_PLANS } from "../constants/data";
+import { scopeStorageKey, scopedUserSegments } from "./profileScope";
 
 const getEffectiveUid = () =>
   auth.currentUser?.uid || (auth.isDemo ? "demo-user" : null);
 
-const getPlansKey = () => {
-  const uid = getEffectiveUid() || "guest";
-  return `gt_workout_plans_${uid}`;
-};
+const getPlansKey = () =>
+  scopeStorageKey("gt_workout_plans", getEffectiveUid() || "guest");
+
+const plansDoc = (uid) => doc(db, ...scopedUserSegments(uid), "settings", "workoutPlans");
 
 export const defaultPlansFromConstants = () =>
   Object.entries(WORKOUT_PLANS).map(([name, exercises], i) => ({
@@ -48,8 +49,7 @@ export const saveWorkoutPlans = async (plans) => {
   try {
     await AsyncStorage.setItem(getPlansKey(), JSON.stringify(normalized));
     if (uid && !auth.isDemo) {
-      const ref = doc(db, "users", uid, "settings", "workoutPlans");
-      await setDoc(ref, { items: normalized, updatedAt: new Date().toISOString() }, { merge: true });
+      await setDoc(plansDoc(uid), { items: normalized, updatedAt: new Date().toISOString() }, { merge: true });
     }
     return normalized;
   } catch (err) {
@@ -68,9 +68,8 @@ export const listenWorkoutPlans = (callback) => {
   if (!uid || auth.isDemo) return unsub;
 
   try {
-    const ref = doc(db, "users", uid, "settings", "workoutPlans");
     unsub = onSnapshot(
-      ref,
+      plansDoc(uid),
       async (snap) => {
         if (snap.exists()) {
           const items = normalizePlans(snap.data()?.items);
