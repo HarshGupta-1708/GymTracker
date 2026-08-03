@@ -1,17 +1,53 @@
 const nodemailer = require("nodemailer");
 
+function mailUser() {
+  return String(process.env.GMAIL_USER || "")
+    .trim()
+    .replace(/^["']|["']$/g, "");
+}
+
+/** Google App Passwords are often copied with spaces — strip them. */
+function mailPass() {
+  return String(process.env.GMAIL_APP_PASSWORD || "")
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .replace(/\s+/g, "");
+}
+
 function getTransporter() {
-  const user = process.env.GMAIL_USER;
-  const pass = process.env.GMAIL_APP_PASSWORD;
+  const user = mailUser();
+  const pass = mailPass();
   if (!user || !pass) return null;
   return nodemailer.createTransport({
-    service: "gmail",
+    host: "smtp.gmail.com",
+    port: 465,
+    secure: true,
     auth: { user, pass },
   });
 }
 
 function isMailConfigured() {
-  return Boolean(process.env.GMAIL_USER && process.env.GMAIL_APP_PASSWORD);
+  return Boolean(mailUser() && mailPass());
+}
+
+function mapSmtpError(err) {
+  const code = err?.code || "";
+  const response = String(err?.response || err?.message || "");
+  if (code === "EAUTH" || /Invalid login|Username and Password not accepted/i.test(response)) {
+    const e = new Error(
+      "Gmail rejected login. On Render, set GMAIL_USER to the notify Gmail and GMAIL_APP_PASSWORD to a 16-character App Password (no spaces). Generate it at Google Account → Security → App passwords.",
+    );
+    e.code = "MAIL_AUTH_FAILED";
+    return e;
+  }
+  if (code === "EENVELOPE" || /Invalid recipient/i.test(response)) {
+    const e = new Error("Invalid recipient email address.");
+    e.code = "MAIL_BAD_RECIPIENT";
+    return e;
+  }
+  const e = new Error(err?.message || "Failed to send email via Gmail SMTP");
+  e.code = err?.code || "MAIL_SEND_FAILED";
+  return e;
 }
 
 async function sendProfileVerifyEmail({ to, name, verifyUrl, hostName }) {
@@ -24,7 +60,7 @@ async function sendProfileVerifyEmail({ to, name, verifyUrl, hostName }) {
 
   const greeter = name || "there";
   const fromLabel = hostName || "a FitTrack user";
-  const from = process.env.GMAIL_USER;
+  const from = mailUser();
   const subject = "Verify your FitTrack profile";
   const text = [
     `Hi ${greeter},`,
@@ -47,13 +83,24 @@ async function sendProfileVerifyEmail({ to, name, verifyUrl, hostName }) {
     <p>Then sign in to FitTrack with Google as <strong>${escapeHtml(to)}</strong>.</p>
   `;
 
-  await transporter.sendMail({
-    from: `FitTrack <${from}>`,
-    to,
-    subject,
-    text,
-    html,
-  });
+  try {
+    const info = await transporter.sendMail({
+      from: `FitTrack <${from}>`,
+      to,
+      subject,
+      text,
+      html,
+    });
+    console.log("verify email sent", {
+      to,
+      messageId: info.messageId,
+      response: info.response,
+    });
+    return info;
+  } catch (err) {
+    console.error("SMTP send failed:", err?.code, err?.response || err?.message);
+    throw mapSmtpError(err);
+  }
 }
 
 function escapeHtml(s) {

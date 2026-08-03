@@ -121,10 +121,16 @@ app.post("/send-verify-email", async (req, res) => {
 
     res.json({ ok: true, sent: true });
   } catch (err) {
-    console.error("send-verify-email error:", err);
-    const status = err.code === "MAIL_NOT_CONFIGURED" ? 503 : 500;
+    console.error("send-verify-email error:", err?.code, err?.message);
+    const status =
+      err.code === "MAIL_NOT_CONFIGURED" || err.code === "MAIL_AUTH_FAILED"
+        ? 503
+        : err.code === "MAIL_BAD_RECIPIENT"
+          ? 400
+          : 500;
     res.status(status).json({
       error: err.message || "Failed to send email",
+      code: err.code || null,
     });
   }
 });

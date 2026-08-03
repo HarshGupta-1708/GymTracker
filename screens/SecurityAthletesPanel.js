@@ -393,10 +393,14 @@ export function ProfilesSection({
         verifyUrl: url,
         hostName: ownerName || ownerEmail || "FitTrack",
       });
-      Alert.alert("Email sent", `Verification link sent to ${email}.`);
+      Alert.alert(
+        "Email sent",
+        `Verification link sent to ${email}. Check Inbox and Spam (From: FitTrack notify Gmail).`,
+      );
       return true;
     } catch (e) {
-      setLinkFallback({ name, email, url, error: e.message });
+      console.warn("[verify email]", e?.message);
+      setLinkFallback({ name, email, url, error: e?.message || "Send failed" });
       return false;
     }
   };
@@ -972,9 +976,14 @@ export function ProfilesSection({
           <View style={styles.modalCard}>
             <Text style={styles.sectionTitle}>VERIFY LINK</Text>
             <Text style={styles.hint}>
-              Automatic email isn’t set up yet on this project. Copy the link and share it with{" "}
-              {linkFallback?.email}.
+              Couldn’t auto-send to {linkFallback?.email}. Copy the link and share it, or fix
+              Gmail on Render and retry.
             </Text>
+            {linkFallback?.error ? (
+              <Text style={[styles.hint, { color: C.error || "#e74c3c" }]}>
+                {linkFallback.error}
+              </Text>
+            ) : null}
             <Text style={styles.linkBox} selectable>
               {linkFallback?.url}
             </Text>

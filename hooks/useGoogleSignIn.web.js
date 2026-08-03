@@ -1,5 +1,9 @@
 import { useCallback, useState } from "react";
-import { GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import {
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+} from "firebase/auth";
 import { auth } from "../config/firebaseConfig";
 import { signInWithGoogleIdentity } from "../utils/googleIdentity.web";
 
@@ -25,8 +29,8 @@ function mapAuthError(err) {
   if (code === "auth/unauthorized-domain") {
     return unauthorizedMessage();
   }
-  if (code === "auth/popup-blocked") {
-    return "Popup blocked. Allow popups for this site in Chrome (lock icon → Site settings → Pop-ups).";
+  if (code === "auth/popup-blocked" || /popup/i.test(message)) {
+    return "Popup blocked. Allow popups for this site, or use the Google button on the next step.";
   }
   if (
     message.includes("access_denied") ||
@@ -41,9 +45,42 @@ function mapAuthError(err) {
   return message || "Google Sign-In failed.";
 }
 
+function shouldUseFallback(err) {
+  const code = err?.code || "";
+  const message = String(err?.message || "");
+  return (
+    code === "auth/popup-blocked" ||
+    code === "auth/cancelled-popup-request" ||
+    code === "auth/popup-timeout" ||
+    /Cross-Origin-Opener-Policy|COOP|timed out|popup/i.test(message)
+  );
+}
+
+function withTimeout(promise, ms, code = "auth/popup-timeout") {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const err = new Error(
+        "Google Sign-In timed out. Allow popups for this site and try again.",
+      );
+      err.code = code;
+      reject(err);
+    }, ms);
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
 /**
- * Web: Firebase popup first; Google Identity Services if popup is blocked.
- * Avoids redirect flow (broken when Chrome clears intermediate-site state).
+ * Web: Firebase popup → visible Google button → full-page redirect.
+ * Brave + Chrome with the same Google account often blocks the first popup.
  */
 export function useGoogleSignIn() {
   const [loading, setLoading] = useState(false);
@@ -61,19 +98,33 @@ export function useGoogleSignIn() {
       provider.setCustomParameters({ prompt: "select_account" });
 
       try {
-        const result = await signInWithPopup(auth, provider);
+        const result = await withTimeout(signInWithPopup(auth, provider), 45000);
         console.info(
           "[GymTracker Auth] Popup sign-in:",
           result.user.email || result.user.uid,
         );
+        return;
       } catch (popupErr) {
-        if (popupErr?.code === "auth/popup-blocked") {
-          console.info("[GymTracker Auth] Popup blocked — using Google Identity Services");
-          await signInWithGoogleIdentity();
-          return;
-        }
-        throw popupErr;
+        if (!shouldUseFallback(popupErr)) throw popupErr;
+        console.info(
+          "[GymTracker Auth] Popup issue — trying Google button:",
+          popupErr?.code || popupErr?.message,
+        );
       }
+
+      try {
+        await signInWithGoogleIdentity();
+        return;
+      } catch (gisErr) {
+        if (gisErr?.code === "auth/popup-closed-by-user") throw gisErr;
+        console.info(
+          "[GymTracker Auth] GIS failed — redirecting:",
+          gisErr?.code || gisErr?.message,
+        );
+      }
+
+      // Full redirect; App.js completes via getRedirectResult.
+      await signInWithRedirect(auth, provider);
     } catch (err) {
       console.error("[GymTracker Auth] Sign-in failed:", err?.code, err?.message);
       setError(mapAuthError(err));
