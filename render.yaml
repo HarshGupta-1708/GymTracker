@@ -13,3 +13,6 @@ services:
         value: llama-3.1-8b-instant
       - key: COACH_DAILY_LIMIT
         value: 20
+      # Render FREE blocks SMTP — set one of these HTTPS providers (Dashboard → Environment):
+      # RESEND_API_KEY or SENDGRID_API_KEY
+      # Optional: MAIL_FROM=FitTrack <fittrack.notify@gmail.com>

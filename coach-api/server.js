@@ -5,7 +5,7 @@ const { verifyRequestAuth, getAdminAuth, getFirebaseAdmin } = require("./src/aut
 const { buildSystemPrompt, buildUserPrompt } = require("./src/prompts");
 const { callGroq } = require("./src/groq");
 const { checkRateLimit, getUsageStats } = require("./src/rateLimit");
-const { sendProfileVerifyEmail, isMailConfigured } = require("./src/mail");
+const { sendProfileVerifyEmail, isMailConfigured, getMailProvider } = require("./src/mail");
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -21,6 +21,7 @@ app.get("/health", (_req, res) => {
     groqConfigured: Boolean(process.env.GROQ_API_KEY),
     firebaseConfigured: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON),
     mailConfigured: isMailConfigured(),
+    mailProvider: getMailProvider(),
     model: process.env.GROQ_MODEL || "llama-3.1-8b-instant",
     dailyLimit: DAILY_LIMIT,
   });
@@ -123,7 +124,9 @@ app.post("/send-verify-email", async (req, res) => {
   } catch (err) {
     console.error("send-verify-email error:", err?.code, err?.message);
     const status =
-      err.code === "MAIL_NOT_CONFIGURED" || err.code === "MAIL_AUTH_FAILED"
+      err.code === "MAIL_NOT_CONFIGURED" ||
+      err.code === "MAIL_AUTH_FAILED" ||
+      err.code === "MAIL_SMTP_BLOCKED"
         ? 503
         : err.code === "MAIL_BAD_RECIPIENT"
           ? 400
