@@ -7,6 +7,7 @@ import {
   getDocs,
   setDoc,
 } from "firebase/firestore";
+import Constants from "expo-constants";
 import { Platform } from "react-native";
 import { auth, db } from "../config/firebaseConfig";
 import { COACH_API_URL } from "../constants/coach";
@@ -46,12 +47,21 @@ function makeToken() {
   return `v_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`;
 }
 
+export function getWebAppOrigin() {
+  const configured =
+    process.env.EXPO_PUBLIC_WEB_APP_URL ||
+    Constants.expoConfig?.extra?.webAppUrl ||
+    "";
+  if (configured) return String(configured).replace(/\/$/, "");
+  if (Platform.OS === "web" && typeof window !== "undefined" && window.location?.origin) {
+    return window.location.origin;
+  }
+  return "https://gym-tracker-flax-beta.vercel.app";
+}
+
 export function buildVerifyUrl(email, token) {
   const q = `verifyProfile=1&email=${encodeURIComponent(normalizeEmail(email))}&token=${encodeURIComponent(token)}`;
-  if (Platform.OS === "web" && typeof window !== "undefined" && window.location?.origin) {
-    return `${window.location.origin}/?${q}`;
-  }
-  return `https://fittrack.app/?${q}`;
+  return `${getWebAppOrigin()}/?${q}`;
 }
 
 export async function listAthletes() {
@@ -301,21 +311,33 @@ export async function updateAthleteProfile(athleteId, { name, photo } = {}) {
 
 async function writeProfileLink({ email, profileId, name, token, verified }) {
   const uid = getUid();
-  if (!uid || auth.isDemo) return;
+  if (!uid || auth.isDemo) {
+    throw new Error("Sign in with Google to link a Gmail to this profile.");
+  }
   const key = normalizeEmail(email);
   if (!key || !key.includes("@")) throw new Error("Enter a valid Gmail / email");
-  await setDoc(linkRef(key), {
-    hostUid: uid,
-    hostEmail: auth.currentUser?.email || "",
-    hostName: auth.currentUser?.displayName || "FitTrack user",
-    profileId,
-    name: name || "Member",
-    email: key,
-    token,
-    verified: Boolean(verified),
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString(),
-  });
+  try {
+    await setDoc(linkRef(key), {
+      hostUid: uid,
+      hostEmail: auth.currentUser?.email || "",
+      hostName: auth.currentUser?.displayName || "FitTrack user",
+      profileId,
+      name: name || "Member",
+      email: key,
+      token,
+      verified: Boolean(verified),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (e) {
+    const msg = String(e?.message || e?.code || "");
+    if (/permission|insufficient/i.test(msg)) {
+      throw new Error(
+        "Could not save invite in Firestore. Paste the updated Firestore rules from firestore.leaderboard.rules.snippet.txt and Publish in Firebase Console.",
+      );
+    }
+    throw e;
+  }
 }
 
 /**
@@ -457,20 +479,80 @@ export async function linkAthleteEmail(athleteId, email) {
   return { email: key, verifyUrl: buildVerifyUrl(key, token), token };
 }
 
+/** Server verify — bypasses Firestore client rules (Render admin SDK). */
+async function verifyProfileInviteViaApi({ email, token }) {
+  if (!COACH_API_URL || auth.isDemo || !auth.currentUser) return null;
+  const idToken = await auth.currentUser.getIdToken();
+  const res = await fetch(`${COACH_API_URL.replace(/\/$/, "")}/verify-profile-invite`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${idToken}`,
+    },
+    body: JSON.stringify({ email: normalizeEmail(email), token }),
+  });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(data.error || `Verification failed (${res.status})`);
+  }
+  return data;
+}
+
 /** Guest/member opens verify link — mark email verified (does not copy data yet). */
 export async function verifyProfileInvite({ email, token }) {
   const key = normalizeEmail(email);
   if (!key || !token) throw new Error("Invalid verification link");
-  const snap = await getDoc(linkRef(key));
-  if (!snap.exists()) throw new Error("Invite not found or already used");
-  const link = snap.data();
-  if (link.token !== token) throw new Error("Invalid or expired verification link");
 
-  await setDoc(
-    linkRef(key),
-    { ...link, verified: true, verifiedAt: new Date().toISOString() },
-    { merge: true },
-  );
+  if (auth.currentUser && !auth.isDemo) {
+    const loginEmail = String(auth.currentUser.email || "").toLowerCase();
+    if (loginEmail && loginEmail !== key) {
+      throw new Error(`Sign in with Google as ${key} to verify this link.`);
+    }
+  }
+
+  let link = null;
+  try {
+    const apiResult = await verifyProfileInviteViaApi({ email: key, token });
+    if (apiResult?.ok) {
+      link = {
+        name: apiResult.name,
+        hostUid: apiResult.hostUid,
+        profileId: apiResult.profileId,
+      };
+    }
+  } catch (apiErr) {
+    console.warn("[athletes] API verify failed, trying Firestore:", apiErr?.message);
+  }
+
+  if (!link) {
+    const snap = await getDoc(linkRef(key));
+    if (!snap.exists()) {
+      throw new Error(
+        "Invite not found. Ask the host to resend the link (Settings → Profiles → Link Gmail).",
+      );
+    }
+    const doc = snap.data();
+    if (doc.token !== token) {
+      throw new Error("This link is outdated. Ask the host to resend a new verify link.");
+    }
+
+    try {
+      await setDoc(
+        linkRef(key),
+        { ...doc, verified: true, verifiedAt: new Date().toISOString() },
+        { merge: true },
+      );
+    } catch (e) {
+      const msg = String(e?.message || e?.code || "");
+      if (/permission|insufficient/i.test(msg)) {
+        throw new Error(
+          "Could not verify — Firestore rules may be missing. Host must publish profileLinks rules, then retry.",
+        );
+      }
+      throw e;
+    }
+    link = doc;
+  }
 
   // Update host athlete flag if current user is host
   const uid = getUid();

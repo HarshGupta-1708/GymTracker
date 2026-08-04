@@ -138,6 +138,97 @@ app.post("/send-verify-email", async (req, res) => {
   }
 });
 
+/** Invitee confirms verify link — uses Admin SDK so Firestore client rules are not a blocker. */
+app.post("/verify-profile-invite", async (req, res) => {
+  try {
+    const authResult = await verifyRequestAuth(req);
+    if (!authResult.ok) {
+      return res.status(401).json({ error: authResult.error });
+    }
+
+    const email = String(req.body?.email || "")
+      .trim()
+      .toLowerCase();
+    const token = String(req.body?.token || "").trim();
+    if (!email || !email.includes("@") || !token) {
+      return res.status(400).json({ error: "email and token are required" });
+    }
+
+    const loginEmail = String(authResult.email || "").toLowerCase();
+    if (!loginEmail || loginEmail !== email) {
+      return res.status(403).json({
+        error: `Sign in with Google as ${email} to verify this link.`,
+      });
+    }
+
+    const admin = getFirebaseAdmin();
+    if (!admin) {
+      return res.status(503).json({ error: "Firebase Admin not configured on server" });
+    }
+
+    const ref = admin.firestore().collection("profileLinks").doc(email);
+    const snap = await ref.get();
+    if (!snap.exists) {
+      return res.status(404).json({
+        error: "Invite not found. Ask the host to resend the verify link.",
+      });
+    }
+
+    const link = snap.data() || {};
+    if (link.token !== token) {
+      return res.status(400).json({
+        error: "This link is outdated. Ask the host to resend a new verify link.",
+      });
+    }
+
+    await ref.set(
+      {
+        ...link,
+        verified: true,
+        verifiedAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      },
+      { merge: true },
+    );
+
+    // Best-effort: mark verified on host profile list
+    if (link.hostUid && link.profileId) {
+      try {
+        const hostRef = admin
+          .firestore()
+          .collection("users")
+          .doc(link.hostUid)
+          .collection("settings")
+          .doc("athletes");
+        const hostSnap = await hostRef.get();
+        if (hostSnap.exists) {
+          const data = hostSnap.data() || {};
+          const items = (data.items || []).map((a) =>
+            a.id === link.profileId ? { ...a, emailVerified: true } : a,
+          );
+          await hostRef.set(
+            { ...data, items, updatedAt: new Date().toISOString() },
+            { merge: true },
+          );
+        }
+      } catch (e) {
+        console.warn("verify-profile-invite host list update:", e.message);
+      }
+    }
+
+    res.json({
+      ok: true,
+      name: link.name || "Profile",
+      email,
+      hostUid: link.hostUid || null,
+      profileId: link.profileId || null,
+    });
+  } catch (err) {
+    console.error("verify-profile-invite error:", err);
+    res.status(500).json({ error: err.message || "Verification failed" });
+  }
+});
+
 app.post("/ask", async (req, res) => {
   try {
     const authResult = await verifyRequestAuth(req);

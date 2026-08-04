@@ -2,7 +2,7 @@
   "expo": {
     "name": "FitTrack",
     "slug": "gym-tracker",
-    "version": "1.4.3",
+    "version": "1.4.4",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "gymtracker",
@@ -37,7 +37,7 @@
           ]
         }
       ],
-      "versionCode": 12
+      "versionCode": 13
     },
     "web": {
       "output": "single",
@@ -61,6 +61,7 @@
     ],
     "extra": {
       "coachApiUrl": "https://gymtracker-coach-api.onrender.com",
+      "webAppUrl": "https://gym-tracker-flax-beta.vercel.app",
       "googleWebClientId": "1013071433374-5nt3jtkhhok3c1u37k6qrlsna32doa8j.apps.googleusercontent.com",
       "googleAndroidClientId": "1013071433374-tbuplbi4egicmjsogurlfv9elkhpp1s4.apps.googleusercontent.com",
       "eas": {

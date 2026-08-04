@@ -4,6 +4,7 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { NavigationContainer } from "@react-navigation/native";
 import Constants from "expo-constants";
 import { StatusBar } from "expo-status-bar";
+import * as Linking from "expo-linking";
 import { getRedirectResult, onAuthStateChanged, signOut } from "firebase/auth";
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -25,9 +26,14 @@ import {
   claimPendingProfileLink,
   getDefaultProfileId,
   parseVerifyQuery,
-  verifyProfileInvite,
 } from "./utils/athletes";
 import { syncEmailIndex } from "./utils/emailIndex";
+import {
+  extractVerifyFromUrl,
+  showVerifyAlert,
+  stashPendingVerify,
+  tryCompletePendingVerify,
+} from "./utils/profileVerify";
 import { SELF_PROFILE, setActiveProfileId } from "./utils/profileScope";
 import { setupPwaWeb } from "./utils/setupPwaWeb";
 import { COLORS, PRESET_EXERCISES, todayStr } from "./constants/data";
@@ -184,23 +190,61 @@ export default function App() {
 
   useEffect(() => {
     setupPwaWeb();
-    // Stash Gmail verify link — must sign in with that Google account to complete verify.
-    if (Platform.OS === "web" && typeof window !== "undefined") {
-      const parsed = parseVerifyQuery(window.location.search || "");
-      if (parsed) {
+
+    const handleVerifyUrl = async (url) => {
+      const parsed =
+        extractVerifyFromUrl(url) ||
+        (Platform.OS === "web" && typeof window !== "undefined"
+          ? parseVerifyQuery(window.location.search || "")
+          : null);
+      if (!parsed) return;
+
+      await stashPendingVerify(parsed);
+
+      if (Platform.OS === "web" && typeof window !== "undefined") {
         try {
-          sessionStorage.setItem("gt_pending_verify", JSON.stringify(parsed));
-          const url = new URL(window.location.href);
-          url.search = "";
-          window.history.replaceState({}, "", url.pathname);
+          const clean = new URL(window.location.href);
+          clean.search = "";
+          window.history.replaceState({}, "", clean.pathname);
         } catch {
           /* ignore */
         }
-        Alert.alert(
-          "Verify your email",
-          `Sign in with Google as ${parsed.email} to confirm this FitTrack profile invite.`,
-        );
       }
+
+      showVerifyAlert(
+        "Verify your email",
+        `Sign in with Google as ${parsed.email} to confirm this FitTrack profile invite.`,
+      );
+
+      // If already signed in, onAuthStateChanged won't fire — verify now.
+      if (auth.currentUser && !auth.isDemo) {
+        const outcome = await tryCompletePendingVerify(auth.currentUser);
+        if (outcome?.status === "verified") {
+          showVerifyAlert(
+            "Email verified",
+            `${outcome.name || "Profile"} is verified. Syncing your data…`,
+          );
+        } else if (outcome?.status === "wrong_account") {
+          showVerifyAlert(
+            "Wrong Google account",
+            `Sign in as ${outcome.expected} to verify (you are ${outcome.actual}).`,
+          );
+        } else if (outcome?.status === "failed") {
+          showVerifyAlert("Verification failed", outcome.message);
+        }
+      }
+    };
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      handleVerifyUrl(window.location.href);
+    } else {
+      Linking.getInitialURL().then((url) => {
+        if (url) handleVerifyUrl(url);
+      });
+      const sub = Linking.addEventListener("url", ({ url }) => {
+        if (url) handleVerifyUrl(url);
+      });
+      return () => sub.remove();
     }
   }, []);
 
@@ -283,30 +327,19 @@ export default function App() {
             // Index email so "Add Gmail" can detect existing FitTrack logins
             await syncEmailIndex(currentUser);
 
-            // Complete email verify from invite link (same Google email required)
-            if (Platform.OS === "web" && typeof sessionStorage !== "undefined") {
-              const raw = sessionStorage.getItem("gt_pending_verify");
-              if (raw) {
-                const pending = JSON.parse(raw);
-                const loginEmail = String(currentUser.email || "").toLowerCase();
-                if (pending?.email && loginEmail === String(pending.email).toLowerCase()) {
-                  try {
-                    const r = await verifyProfileInvite(pending);
-                    sessionStorage.removeItem("gt_pending_verify");
-                    Alert.alert(
-                      "Email verified",
-                      `${r.name || "Profile"} is verified. Syncing your data…`,
-                    );
-                  } catch (ve) {
-                    Alert.alert("Verification failed", ve.message || "Invalid link");
-                  }
-                } else if (pending?.email) {
-                  Alert.alert(
-                    "Wrong Google account",
-                    `Sign in as ${pending.email} to verify this invite (you are ${loginEmail || "signed in"}).`,
-                  );
-                }
-              }
+            const verifyOutcome = await tryCompletePendingVerify(currentUser);
+            if (verifyOutcome?.status === "verified") {
+              Alert.alert(
+                "Email verified",
+                `${verifyOutcome.name || "Profile"} is verified. Syncing your data…`,
+              );
+            } else if (verifyOutcome?.status === "wrong_account") {
+              Alert.alert(
+                "Wrong Google account",
+                `Sign in as ${verifyOutcome.expected} to verify this invite (you are ${verifyOutcome.actual}).`,
+              );
+            } else if (verifyOutcome?.status === "failed") {
+              Alert.alert("Verification failed", verifyOutcome.message);
             }
 
             const claimed = await claimPendingProfileLink(currentUser);
